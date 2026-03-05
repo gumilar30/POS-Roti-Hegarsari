@@ -6,24 +6,15 @@
     <title>Sales - Roti Hegarsari</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        .payment-section { margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc; }
-        .input-group { margin-bottom: 10px; }
-        .input-group label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 4px; }
-        .input-group input, .input-group select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        #panelCash { display: block; background: #f9f9f9; padding: 10px; border-radius: 4px; }
-        #daftarProduk { max-height: 400px; overflow-y: auto; border: 1px solid #eee; border-radius: 4px; }
-        .search-box { width: 100%; padding: 10px; margin-bottom: 15px; border: 2px solid #3498db; border-radius: 5px; box-sizing: border-box; }
-        .btn-wa { background: #25d366; color: white; margin-top: 5px; width: 100%; padding: 10px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; display: none; }
-        
-        /* GAYA BARU: Garis Atas Bawah untuk Total */
-        .total-highlight {
-            border-top: 3px solid #2c3e50;
-            border-bottom: 3px solid #2c3e50;
-            padding: 15px 0;
-            margin: 15px 0;
-            background-color: #fcfcfc;
-            text-align: center;
-        }
+        .tab-menu { display: flex; gap: 10px; margin-bottom: 15px; }
+        .tab-btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; background: #ddd; font-weight: bold; }
+        .tab-btn.active { background: #3498db; color: white; }
+        #daftarProduk { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; max-height: 500px; overflow-y: auto; padding: 5px; }
+        .prod-card { background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); padding: 10px; text-align: center; border: 1px solid #eee; }
+        .prod-card img { width: 100%; height: 100px; object-fit: cover; border-radius: 5px; margin-bottom: 8px; }
+        .prod-card h4 { margin: 5px 0; font-size: 14px; }
+        .btn-add { width: 100%; background: #3498db; color: white; border: none; padding: 8px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .total-highlight { border-top: 3px solid #2c3e50; border-bottom: 3px solid #2c3e50; padding: 15px 0; margin: 15px 0; background: #fcfcfc; text-align: center; }
     </style>
 </head>
 <body>
@@ -37,74 +28,45 @@
     </div>
 
     <div class="content">
-        <h1>Kasir Penjualan (Live Cloud)</h1>
+        <h1>Kasir Penjualan</h1>
         <div style="display: flex; gap: 20px; flex-wrap: wrap;">
-            <div class="card" style="flex: 1; min-width: 300px;">
-                <h3>Menu Roti</h3>
-                <input type="text" id="searchMenu" class="search-box" placeholder="🔍 Cari nama roti..." oninput="renderProduk()">
-                <div id="daftarProduk">Memuat stok...</div>
+            <div class="card" style="flex: 1; min-width: 350px;">
+                <input type="text" id="searchMenu" placeholder="🔍 Cari nama..." oninput="renderProduk()" style="width:100%; padding:10px; margin-bottom:15px; border-radius:5px; border:1px solid #ddd;">
+                
+                <div class="tab-menu">
+                    <button class="tab-btn active" onclick="setFilter('Semua', this)">Semua</button>
+                    <button class="tab-btn" onclick="setFilter('Makanan', this)">Makanan</button>
+                    <button class="tab-btn" onclick="setFilter('Minuman', this)">Minuman</button>
+                </div>
+
+                <div id="daftarProduk">Memuat...</div>
             </div>
 
             <div class="card" style="width: 350px;">
                 <h3>Keranjang 🛒</h3>
-                <div id="cart" style="min-height: 50px; margin-bottom: 10px; font-size: 14px;"></div>
+                <div id="cart" style="font-size: 14px; margin-bottom: 10px;"></div>
                 <hr>
+                <input type="number" id="customerHP" placeholder="No. HP Customer" style="width:100%; padding:8px; margin-bottom:10px;">
+                <input type="number" id="inputDiskon" placeholder="Diskon (%)" oninput="renderCart()" style="width:100%; padding:8px; margin-bottom:10px;">
                 
-                <div class="payment-section">
-                    <div class="input-group">
-                        <label>No. HP Customer (WhatsApp):</label>
-                        <input type="number" id="customerHP" placeholder="08123456789">
-                    </div>
-
-                    <div class="input-group">
-                        <label>Diskon (%):</label>
-                        <input type="number" id="inputDiskon" placeholder="0" oninput="renderCart()">
-                    </div>
-
-                    <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 5px;">
-                        <span>Subtotal:</span>
-                        <span>Rp <span id="subtotal">0</span></span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 14px; color: #e67e22; margin-bottom: 5px;">
-                        <span>Potongan Diskon:</span>
-                        <span>-Rp <span id="nilaiPotongan">0</span></span>
-                    </div>
-
-                    <div class="total-highlight">
-                        <h2 style="margin: 0; color: #2c3e50;">
-                            TOTAL: Rp <span id="totalFinal">0</span>
-                        </h2>
-                    </div>
-
-                    <div class="input-group">
-                        <label>Metode Pembayaran:</label>
-                        <select id="metodeBayar" onchange="toggleBayarCash()">
-                            <option value="Cash">Cash / Tunai</option>
-                            <option value="Transfer">Transfer Bank</option>
-                            <option value="QRIS">QRIS</option>
-                            <option value="ShopeePay">ShopeePay</option>
-                        </select>
-                    </div>
-
-                    <div id="panelCash">
-                        <div class="input-group">
-                            <label>Bayar (Tunai):</label>
-                            <input type="number" id="inputBayar" oninput="hitungKembalian()">
-                        </div>
-                        <p style="font-weight:bold; color: #e74c3c; margin: 0; text-align: center;">Kembalian: Rp <span id="kembalian">0</span></p>
-                    </div>
+                <div class="total-highlight">
+                    <h2 style="margin: 0; color: #2c3e50;">TOTAL: Rp <span id="totalFinal">0</span></h2>
                 </div>
 
-                <button onclick="checkout()" style="width:100%; background:#27ae60; color:white; padding:15px; border:none; border-radius:5px; cursor:pointer; font-weight:bold; margin-top: 10px; font-size: 16px;">Selesaikan & Print</button>
-                <button id="btnWA" class="btn-wa" onclick="kirimWA()">📱 Kirim Resi ke WhatsApp</button>
+                <select id="metodeBayar" style="width:100%; padding:10px; margin-bottom:10px;">
+                    <option value="Cash">Cash</option>
+                    <option value="QRIS">QRIS</option>
+                    <option value="Transfer">Transfer</option>
+                </select>
+                <button onclick="checkout()" style="width:100%; background:#27ae60; color:white; padding:15px; border:none; border-radius:5px; font-weight:bold; font-size:16px; cursor:pointer;">Selesaikan & Print</button>
             </div>
         </div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-
     <script>
+        // Pakai Config Firebase Anda
         const firebaseConfig = {
             apiKey: "AIzaSyD0hNlCjszxB_3dPEJngPAFknfxiImK6Nc",
             authDomain: "roti-hegarsari.firebaseapp.com",
@@ -114,131 +76,69 @@
             messagingSenderId: "770636746020",
             appId: "1:770636746020:web:e7c12761ad3e295271b7b1"
         };
-
         firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+        const db = firebase.database();
 
         let produkObj = {};
         let cart = [];
-        let dataTerakhir = null;
+        let filterKategori = "Semua";
 
-        database.ref('produk/').on('value', (snapshot) => {
-            const data = snapshot.val();
-            if (data) { produkObj = data; renderProduk(); }
-        });
+        db.ref('produk/').on('value', (snap) => { produkObj = snap.val() || {}; renderProduk(); });
+
+        function setFilter(kat, btn) {
+            filterKategori = kat;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderProduk();
+        }
 
         function renderProduk() {
             const container = document.getElementById("daftarProduk");
             const keyword = document.getElementById("searchMenu").value.toLowerCase();
             container.innerHTML = "";
-            Object.keys(produkObj).forEach((id) => {
-                const item = produkObj[id];
-                if (item.nama.toLowerCase().includes(keyword)) {
+            Object.keys(produkObj).forEach(id => {
+                const p = produkObj[id];
+                const cocokKategori = filterKategori === "Semua" || p.kategori === filterKategori;
+                const cocokNama = p.nama.toLowerCase().includes(keyword);
+                if(cocokKategori && cocokNama) {
                     container.innerHTML += `
-                        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid #eee;">
-                            <div><strong>${item.nama}</strong><br><small>Stok: ${item.stok} | Rp ${Number(item.harga).toLocaleString()}</small></div>
-                            <button onclick="tambahKeCart('${id}')" style="background:#3498db; color:white; border:none; border-radius:4px; padding: 8px 15px; cursor:pointer;">+</button>
+                        <div class="prod-card">
+                            <img src="${p.foto || 'https://via.placeholder.com/100'}">
+                            <h4>${p.nama}</h4>
+                            <small>Rp ${parseInt(p.harga).toLocaleString()}</small><br>
+                            <small>Stok: ${p.stok}</small>
+                            <button class="btn-add" onclick="tambahKeCart('${id}')">+</button>
                         </div>`;
                 }
             });
         }
 
         function tambahKeCart(id) {
-            const itemAsli = produkObj[id];
-            if (itemAsli.stok <= 0) return alert("Stok habis!");
-            let itemInCart = cart.find(c => c.id === id);
-            if (itemInCart) { itemInCart.qty++; } else { cart.push({...itemAsli, id: id, qty: 1}); }
+            if(produkObj[id].stok <= 0) return alert("Stok Habis!");
+            let item = cart.find(c => c.id === id);
+            if(item) item.qty++; else cart.push({...produkObj[id], id: id, qty: 1});
             produkObj[id].stok--;
             renderCart(); renderProduk();
         }
 
         function renderCart() {
             const cartDiv = document.getElementById("cart");
-            cartDiv.innerHTML = "";
-            let subtotal = 0;
-            cart.forEach((item) => {
-                subtotal += item.harga * item.qty;
-                cartDiv.innerHTML += `<div style="display:flex; justify-content:space-between;"><span>${item.nama} x${item.qty}</span><span>Rp ${(item.harga*item.qty).toLocaleString()}</span></div>`;
+            let subtotal = 0; cartDiv.innerHTML = "";
+            cart.forEach(i => {
+                subtotal += i.harga * i.qty;
+                cartDiv.innerHTML += `<div>${i.nama} x${i.qty} - Rp ${(i.harga*i.qty).toLocaleString()}</div>`;
             });
-
-            const persenDiskon = document.getElementById("inputDiskon").value || 0;
-            const potongan = (persenDiskon / 100) * subtotal;
-            const total = subtotal - potongan;
-
-            document.getElementById("subtotal").innerText = subtotal.toLocaleString();
-            document.getElementById("nilaiPotongan").innerText = potongan.toLocaleString();
-            document.getElementById("totalFinal").innerText = total.toLocaleString();
-            hitungKembalian();
-        }
-
-        function toggleBayarCash() {
-            const metode = document.getElementById("metodeBayar").value;
-            document.getElementById("panelCash").style.display = (metode === "Cash") ? "block" : "none";
-        }
-
-        function hitungKembalian() {
-            const totalStr = document.getElementById("totalFinal").innerText.replace(/,/g, '');
-            const total = parseInt(totalStr) || 0;
-            const bayar = document.getElementById("inputBayar").value || 0;
-            const kembalian = bayar - total;
-            document.getElementById("kembalian").innerText = (kembalian > 0) ? kembalian.toLocaleString() : "0";
+            const diskon = (document.getElementById("inputDiskon").value || 0) / 100 * subtotal;
+            document.getElementById("totalFinal").innerText = (subtotal - diskon).toLocaleString();
         }
 
         function checkout() {
-            if (cart.length === 0) return alert("Keranjang kosong!");
-            const hp = document.getElementById("customerHP").value;
-            const total = parseInt(document.getElementById("totalFinal").innerText.replace(/,/g, ''));
-            const potongan = parseInt(document.getElementById("nilaiPotongan").innerText.replace(/,/g, ''));
-            
-            dataTerakhir = {
-                id: "TRX-" + Date.now(),
-                customer: hp || "Umum",
-                item: [...cart],
-                subtotal: parseInt(document.getElementById("subtotal").innerText.replace(/,/g, '')),
-                potongan: potongan,
-                total: total,
-                metode: document.getElementById("metodeBayar").value,
-                bayar: document.getElementById("inputBayar").value || total,
-                kembalian: document.getElementById("kembalian").innerText,
-                waktu: new Date().toLocaleString('id-ID')
-            };
-
+            if(cart.length === 0) return alert("Kosong!");
+            const transID = "TRX-" + Date.now();
             const updates = {};
-            cart.forEach(item => { updates['/produk/' + item.id + '/stok'] = item.stok; });
-            updates['/transaksi/' + dataTerakhir.id] = dataTerakhir;
-
-            database.ref().update(updates).then(() => {
-                printResi(dataTerakhir);
-                document.getElementById("btnWA").style.display = "block";
-                alert("Berhasil!");
-                cart = []; renderCart();
-            });
-        }
-
-        function printResi(d) {
-            const win = window.open("", "", "width=300,height=600");
-            let items = d.item.map(i => `<div style="display:flex; justify-content:space-between; font-size:12px;"><span>${i.nama} x${i.qty}</span><span>${(i.harga*i.qty).toLocaleString()}</span></div>`).join("");
-            win.document.write(`<html><body onload="window.print(); window.close();" style="width:56mm; font-family:monospace; padding:4mm;">
-                <center><strong>ROTI HEGARSARI</strong><br><small>Resi Penjualan</small></center><hr>
-                <div style="font-size:10px;">ID: ${d.id}<br>HP: ${d.customer}<br>${d.waktu}</div><hr>
-                ${items}<hr>
-                <div style="display:flex; justify-content:space-between;"><span>Subtotal:</span><span>${d.subtotal.toLocaleString()}</span></div>
-                <div style="display:flex; justify-content:space-between; color:red;"><span>Diskon:</span><span>-${d.potongan.toLocaleString()}</span></div>
-                <div style="display:flex; justify-content:space-between; font-weight:bold;"><span>TOTAL:</span><span>${d.total.toLocaleString()}</span></div><hr>
-                <center style="font-size:10px;">Terima Kasih!</center></body></html>`);
-            win.document.close();
-        }
-
-        function kirimWA() {
-            if (!dataTerakhir) return;
-            const hp = dataTerakhir.customer;
-            if (hp === "Umum" || hp === "") return alert("Masukkan No HP Customer dulu!");
-            
-            let text = `*ROTI HEGARSARI*%0A--------------------------%0AID: ${dataTerakhir.id}%0A%0A`;
-            dataTerakhir.item.forEach(i => { text += `${i.nama} x${i.qty} = ${ (i.harga*i.qty).toLocaleString() }%0A`; });
-            text += `%0A--------------------------%0A*Total: Rp ${dataTerakhir.total.toLocaleString()}*%0A_Diskon: Rp ${dataTerakhir.potongan.toLocaleString()}_%0A--------------------------%0A_Terima kasih atas kunjungannya!_`;
-            
-            window.open(`https://wa.me/${hp.startsWith('0') ? '62' + hp.slice(1) : hp}?text=${text}`);
+            cart.forEach(i => updates['/produk/'+i.id+'/stok'] = i.stok);
+            updates['/transaksi/'+transID] = { id: transID, customer: document.getElementById("customerHP").value || "Umum", item: cart, total: parseInt(document.getElementById("totalFinal").innerText.replace(/,/g, '')), waktu: new Date().toLocaleString() };
+            db.ref().update(updates).then(() => { alert("Sukses!"); location.reload(); });
         }
     </script>
 </body>

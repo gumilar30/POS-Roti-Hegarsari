@@ -5,28 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel - Roti Hegarsari</title>
     <link rel="stylesheet" href="style.css">
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    
     <style>
         .admin-actions { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
         .btn-edit { background: #f39c12; color: white; padding: 5px 12px; border-radius: 4px; border: none; cursor: pointer; font-weight: bold; }
         .upload-box { border: 2px dashed #3498db; padding: 15px; border-radius: 8px; text-align: center; background: #ecf0f1; flex: 1; min-width: 250px; }
         #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #2c3e50; z-index: 1000; display: flex; justify-content: center; align-items: center; flex-direction: column; color: white; }
-        .login-card { background: white; padding: 30px; border-radius: 10px; color: #333; text-align: center; width: 300px; }
-        input[type="password"], input[type="text"], input[type="number"] { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .img-preview { width: 50px; height: 50px; object-fit: cover; border-radius: 5px; border: 1px solid #ddd; }
+        table { width: 100%; border-collapse: collapse; }
         th { background-color: #2c3e50; color: white; padding: 12px; text-align: left; }
         td { padding: 12px; border-bottom: 1px solid #eee; }
-        tr:hover { background-color: #f9f9f9; }
     </style>
 </head>
 <body>
     <div id="loginOverlay">
-        <div class="login-card">
-            <h2 style="margin-top: 0;">Pintu Admin</h2>
-            <p style="font-size: 14px; color: #666;">Masukkan password untuk mengelola stok</p>
-            <input type="password" id="adminPass" placeholder="Password Admin">
+        <div style="background: white; padding: 30px; border-radius: 10px; color: #333; text-align: center;">
+            <h2>Pintu Admin</h2>
+            <input type="password" id="adminPass" placeholder="Password Admin" style="width: 100%; padding: 10px; margin: 10px 0;">
             <button onclick="checkAccess()" style="width: 100%; background: #27ae60; color: white; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">Masuk</button>
         </div>
     </div>
@@ -40,42 +35,36 @@
     </div>
 
     <div class="content">
-        <h1>Management Produk (Cloud Mode)</h1>
+        <h1>Management Produk (Makanan & Minuman)</h1>
         
         <div class="admin-actions">
-            <button onclick="showAddForm()" style="background:#27ae60; color:white; border:none; padding:12px 20px; border-radius: 5px; font-weight: bold; cursor: pointer;">+ Tambah Roti</button>
-            
+            <button onclick="showAddForm()" style="background:#27ae60; color:white; border:none; padding:12px 20px; border-radius: 5px; font-weight: bold; cursor: pointer;">+ Tambah Produk</button>
             <div class="upload-box">
-                <p style="margin: 0 0 10px 0; font-weight: bold; font-size: 13px;">Upload Excel (Update Massal)</p>
-                <input type="file" id="excelFile" accept=".xlsx, .xls" style="font-size: 12px;">
-                <button onclick="processExcel()" style="background:#3498db; color:white; border:none; padding:8px 15px; border-radius:4px; margin-top: 5px; cursor: pointer; font-weight: bold;">Proses File</button>
+                <small>Excel: ID, Nama, Harga, Stok, Kategori, FotoURL</small><br>
+                <input type="file" id="excelFile" accept=".xlsx, .xls">
+                <button onclick="processExcel()" style="background:#3498db; color:white; border:none; padding:8px 15px; border-radius:4px; cursor: pointer; font-weight: bold;">Proses Excel</button>
             </div>
-            
-            <button onclick="resetData()" style="background:#e74c3c; color:white; border:none; padding:12px; border-radius: 5px; cursor: pointer;">Reset Semua</button>
         </div>
 
         <div class="table-container" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-            <h3>Daftar Stok Saat Ini (Live dari Firebase)</h3>
             <table>
                 <thead>
                     <tr>
-                        <th>ID</th>
-                        <th>Nama Roti</th>
+                        <th>Foto</th>
+                        <th>Nama</th>
+                        <th>Kategori</th>
                         <th>Harga</th>
                         <th>Stok</th>
                         <th>Aksi</th>
                     </tr>
                 </thead>
-                <tbody id="productTable">
-                    <tr><td colspan="5" style="text-align: center;">Memuat data...</td></tr>
-                </tbody>
+                <tbody id="productTable"></tbody>
             </table>
         </div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyD0hNlCjszxB_3dPEJngPAFknfxiImK6Nc",
@@ -89,119 +78,68 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // Fitur 3: Cek Hak Akses
         function checkAccess() {
-            const pass = document.getElementById('adminPass').value;
-            // Password default: admin123
-            if(pass === "admin123") {
-                document.getElementById('loginOverlay').style.display = 'none';
-            } else {
-                alert("Password Salah! Hanya Admin yang boleh mengubah data.");
-            }
+            if(document.getElementById('adminPass').value === "admin123") document.getElementById('loginOverlay').style.display = 'none';
+            else alert("Salah!");
         }
 
-        // Tampilkan Data
         db.ref('produk/').on('value', (snap) => {
             const products = snap.val();
             const table = document.getElementById('productTable');
             table.innerHTML = "";
-            if (products) {
-                for(let id in products) {
-                    const p = products[id];
-                    table.innerHTML += `
-                        <tr>
-                            <td><strong>${id}</strong></td>
-                            <td>${p.nama}</td>
-                            <td>Rp ${parseInt(p.harga).toLocaleString()}</td>
-                            <td>${p.stok}</td>
-                            <td>
-                                <button class="btn-edit" onclick="editProduct('${id}', '${p.nama}', ${p.harga}, ${p.stok})">Edit</button>
-                                <button onclick="deleteProduct('${id}')" style="background:#c0392b; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; margin-left: 5px;">Hapus</button>
-                            </td>
-                        </tr>
-                    `;
-                }
-            } else {
-                table.innerHTML = "<tr><td colspan='5' style='text-align: center;'>Stok kosong. Silakan tambah produk.</td></tr>";
+            for(let id in products) {
+                const p = products[id];
+                table.innerHTML += `
+                    <tr>
+                        <td><img src="${p.foto || 'https://via.placeholder.com/50'}" class="img-preview"></td>
+                        <td><strong>${p.nama}</strong><br><small>ID: ${id}</small></td>
+                        <td>${p.kategori || 'Makanan'}</td>
+                        <td>Rp ${parseInt(p.harga).toLocaleString()}</td>
+                        <td>${p.stok}</td>
+                        <td>
+                            <button class="btn-edit" onclick="editProduct('${id}', '${p.nama}', ${p.harga}, ${p.stok}, '${p.kategori}', '${p.foto}')">Edit</button>
+                            <button onclick="deleteProduct('${id}')" style="background:#c0392b; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">Hapus</button>
+                        </td>
+                    </tr>`;
             }
         });
 
-        // Fitur 1: Edit Produk (Prompt)
-        function editProduct(id, oldNama, oldHarga, oldStok) {
-            const newNama = prompt("Edit Nama Roti:", oldNama);
-            const newHarga = prompt("Edit Harga (Hanya angka):", oldHarga);
-            const newStok = prompt("Edit Stok (Hanya angka):", oldStok);
-            
-            if(newNama && newHarga && newStok) {
-                db.ref('produk/' + id).update({
-                    nama: newNama,
-                    harga: parseInt(newHarga),
-                    stok: parseInt(newStok)
-                }).then(() => alert("Produk berhasil diperbarui!"));
-            }
+        function showAddForm() {
+            const id = prompt("ID Produk:");
+            const nama = prompt("Nama:");
+            const harga = prompt("Harga:");
+            const stok = prompt("Stok:");
+            const kat = prompt("Kategori (Makanan/Minuman):", "Makanan");
+            const foto = prompt("Link Foto (URL):");
+            if(id && nama) db.ref('produk/' + id).set({ nama, harga: parseInt(harga), stok: parseInt(stok), kategori: kat, foto: foto });
         }
 
-        // Fitur 2: Proses Excel (Massal)
-        function processExcel() {
-            const fileInput = document.getElementById('excelFile');
-            const file = fileInput.files[0];
-            if(!file) return alert("Pilih file excel (.xlsx) terlebih dahulu!");
+        function editProduct(id, n, h, s, k, f) {
+            const nn = prompt("Nama:", n);
+            const nh = prompt("Harga:", h);
+            const ns = prompt("Stok:", s);
+            const nk = prompt("Kategori:", k);
+            const nf = prompt("Link Foto:", f);
+            if(nn) db.ref('produk/' + id).update({ nama: nn, harga: parseInt(nh), stok: parseInt(ns), kategori: nk, foto: nf });
+        }
 
+        function processExcel() {
+            const file = document.getElementById('excelFile').files[0];
+            if(!file) return alert("Pilih file!");
             const reader = new FileReader();
             reader.onload = (e) => {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, {type: 'array'});
-                const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                const json = XLSX.utils.sheet_to_json(sheet);
-
-                if(confirm(`Sistem akan mengupdate ${json.length} item. Lanjutkan?`)) {
-                    const updates = {};
-                    json.forEach(row => {
-                        // Header Excel Harus: ID, Nama, Harga, Stok
-                        if(row.ID && row.Nama) {
-                            updates['/produk/' + row.ID] = {
-                                nama: row.Nama,
-                                harga: parseInt(row.Harga || 0),
-                                stok: parseInt(row.Stok || 0)
-                            };
-                        }
-                    });
-                    db.ref().update(updates)
-                        .then(() => {
-                            alert("Upload Berhasil! Ribuan data terupdate dalam sekejap.");
-                            fileInput.value = "";
-                        })
-                        .catch(err => alert("Gagal: " + err.message));
-                }
+                const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
+                const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                const updates = {};
+                json.forEach(row => {
+                    if(row.ID) updates['/produk/' + row.ID] = { nama: row.Nama, harga: parseInt(row.Harga), stok: parseInt(row.Stok), kategori: row.Kategori || 'Makanan', foto: row.FotoURL || '' };
+                });
+                db.ref().update(updates).then(() => alert("Berhasil!"));
             };
             reader.readAsArrayBuffer(file);
         }
 
-        function deleteProduct(id) {
-            if(confirm("Yakin ingin menghapus produk ID " + id + "?")) {
-                db.ref('produk/' + id).remove();
-            }
-        }
-
-        function showAddForm() {
-            const id = prompt("Masukkan ID Produk (Harus Unik):");
-            const nama = prompt("Nama Roti:");
-            const harga = prompt("Harga Jual:");
-            const stok = prompt("Stok Awal:");
-            if(id && nama && harga && stok) {
-                db.ref('produk/' + id).set({
-                    nama: nama,
-                    harga: parseInt(harga),
-                    stok: parseInt(stok)
-                });
-            }
-        }
-
-        function resetData() {
-            if(confirm("PERINGATAN! Ini akan menghapus SEMUA daftar produk. Lanjutkan?")) {
-                db.ref('produk').remove();
-            }
-        }
+        function deleteProduct(id) { if(confirm("Hapus?")) db.ref('produk/' + id).remove(); }
     </script>
 </body>
 </html>

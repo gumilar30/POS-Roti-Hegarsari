@@ -77,8 +77,8 @@
             
             if (!input) return;
 
-            // Cari di database Firebase
-            database.ref('transaksi/' + input).once('value', (snapshot) => {
+            // PERBAIKAN: Pastikan alamat database mengarah ke folder 'transaksi'
+            database.ref('transaksi').child(input).once('value', (snapshot) => {
                 const data = snapshot.val();
                 
                 if (data) {
@@ -86,6 +86,7 @@
                     panelHasil.style.display = "block";
                     panelError.style.display = "none";
                     
+                    // Render detail transaksi ke layar
                     let itemHtml = data.item.map(i => `
                         <div class="item-row">
                             <span>${i.nama} x${i.qty}</span>
@@ -106,6 +107,7 @@
                         <p><strong>Metode:</strong> ${data.metode}</p>
                     `;
                 } else {
+                    // Jika data tidak ditemukan
                     panelHasil.style.display = "none";
                     panelError.style.display = "block";
                 }

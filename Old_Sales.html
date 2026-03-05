@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>POS Toko Roti</title>
+    <style>
+        body {
+            font-family: Arial;
+            display: flex;
+            padding: 20px;
+        }
+
+        .produk, .keranjang {
+            width: 50%;
+            padding: 10px;
+        }
+
+        button {
+            margin: 5px;
+            padding: 6px;
+            cursor: pointer;
+        }
+
+        .item {
+            border: 1px solid #ccc;
+            padding: 8px;
+            margin: 5px 0;
+        }
+
+        h3 {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="produk">
+    <h2>Daftar Roti 🍞</h2>
+    <div id="daftarProduk"></div>
+</div>
+
+<div class="keranjang">
+    <h2>Keranjang 🛒</h2>
+    <div id="cart"></div>
+    <h3>Total: Rp <span id="total">0</span></h3>
+
+    <input type="text" id="noHP" placeholder="No Telepon (opsional)">
+    <br><br>
+
+    <button onclick="checkout()">Checkout</button>
+
+    <h3>Riwayat Transaksi</h3>
+    <div id="riwayat"></div>
+
+    <h3>Laporan Hari Ini 📊</h3>
+    <div id="laporan"></div>
+</div>
+
+<script>
+
+var transaksi = JSON.parse(localStorage.getItem("transaksi")) || [];
+
+var produk = JSON.parse(localStorage.getItem("produk")) || [
+    { id: 1, nama: "Roti Coklat", harga: 8000, stok: 10 },
+    { id: 2, nama: "Roti Keju", harga: 9000, stok: 8 },
+    { id: 3, nama: "Roti Sosis", harga: 10000, stok: 5 }
+];
+
+var cart = JSON.parse(localStorage.getItem("cart")) || [];
+
+function simpanData() {
+    localStorage.setItem("produk", JSON.stringify(produk));
+    localStorage.setItem("cart", JSON.stringify(cart));
+    localStorage.setItem("transaksi", JSON.stringify(transaksi));
+}
+
+function generateNoResi() {
+    var today = new Date();
+    var tanggal =
+        today.getFullYear().toString() +
+        String(today.getMonth() + 1).padStart(2, '0') +
+        String(today.getDate()).padStart(2, '0');
+
+    var nomorUrut = transaksi.length + 1;
+    var urutFormatted = String(nomorUrut).padStart(3, '0');
+
+    return "ROTI-" + tanggal + "-" + urutFormatted;
+}
+
+function tampilkanProduk() {
+    var container = document.getElementById("daftarProduk");
+    container.innerHTML = "";
+
+    produk.forEach(function(item) {
+        var div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML =
+            item.nama + " (Stok: " + item.stok + ") - Rp " + item.harga +
+            " <button onclick='tambahKeCart(" + item.id + ")'>Tambah</button>";
+        container.appendChild(div);
+    });
+}
+
+function tambahKeCart(id) {
+    var item = produk.find(p => p.id === id);
+
+    if (item.stok <= 0) {
+        alert("Stok habis!");
+        return;
+    }
+
+    var existing = cart.find(c => c.id === id);
+
+    if (existing) {
+        existing.qty += 1;
+    } else {
+        cart.push({ ...item, qty: 1 });
+    }
+
+    item.stok -= 1;
+
+    simpanData();
+    updateCart();
+    tampilkanProduk();
+}
+
+function updateCart() {
+    var container = document.getElementById("cart");
+    container.innerHTML = "";
+    var total = 0;
+
+    cart.forEach(function(item, index) {
+        var subtotal = item.harga * item.qty;
+        total += subtotal;
+
+        var div = document.createElement("div");
+        div.innerHTML =
+            item.nama +
+            " x" + item.qty +
+            " = Rp " + subtotal +
+            " <button onclick='hapusItem(" + index + ")'>Hapus</button>";
+
+        container.appendChild(div);
+    });
+
+    document.getElementById("total").innerText = total;
+}
+
+function hapusItem(index) {
+    var item = cart[index];
+    var produkItem = produk.find(p => p.id === item.id);
+
+    produkItem.stok += item.qty;
+
+    cart.splice(index, 1);
+
+    simpanData();
+    updateCart();
+    tampilkanProduk();
+}
+
+function checkout() {
+    if (cart.length === 0) {
+        alert("Keranjang kosong!");
+        return;
+    }
+
+    var noHP = document.getElementById("noHP").value;
+    var noResi = generateNoResi();
+
+    var total = 0;
+    cart.forEach(function(item) {
+        total += item.harga * item.qty;
+    });
+
+    var dataTransaksi = {
+        noResi: noResi,
+        tanggal: new Date().toLocaleString(),
+        noHP: noHP,
+        items: cart,
+        total: total
+    };
+
+    transaksi.push(dataTransaksi);
+
+    alert("Transaksi berhasil! No Resi: " + noResi);
+
+    cart = [];
+    document.getElementById("noHP").value = "";
+
+    simpanData();
+    updateCart();
+    tampilkanRiwayat();
+    tampilkanLaporan();
+}
+
+function tampilkanRiwayat() {
+    var container = document.getElementById("riwayat");
+    container.innerHTML = "";
+
+    transaksi.forEach(function(t) {
+        var div = document.createElement("div");
+        div.style.border = "1px solid #ccc";
+        div.style.padding = "5px";
+        div.style.marginBottom = "5px";
+
+        div.innerHTML =
+            "No Resi: <b>" + t.noResi + "</b>" +
+            "<br>Tanggal: " + t.tanggal +
+            "<br>No HP: " + (t.noHP || "-") +
+            "<br>Total: Rp " + t.total;
+
+        container.appendChild(div);
+    });
+}
+
+function tampilkanLaporan() {
+    var laporanDiv = document.getElementById("laporan");
+
+    var hariIni = new Date().toLocaleDateString();
+    var totalOmzet = 0;
+    var jumlahTransaksi = 0;
+    var produkTerjual = {};
+
+    transaksi.forEach(function(t) {
+        if (t.tanggal.includes(hariIni)) {
+            totalOmzet += t.total;
+            jumlahTransaksi++;
+
+            t.items.forEach(function(item) {
+                if (!produkTerjual[item.nama]) {
+                    produkTerjual[item.nama] = 0;
+                }
+                produkTerjual[item.nama] += item.qty;
+            });
+        }
+    });
+
+    var produkTerlaris = "-";
+    var max = 0;
+
+    for (var nama in produkTerjual) {
+        if (produkTerjual[nama] > max) {
+            max = produkTerjual[nama];
+            produkTerlaris = nama + " (" + max + " terjual)";
+        }
+    }
+
+    laporanDiv.innerHTML =
+        "Omzet Hari Ini: Rp " + totalOmzet +
+        "<br>Jumlah Transaksi: " + jumlahTransaksi +
+        "<br>Produk Terlaris: " + produkTerlaris;
+}
+
+tampilkanProduk();
+updateCart();
+tampilkanRiwayat();
+tampilkanLaporan();
+
+</script>
+
+</body>
+</html>

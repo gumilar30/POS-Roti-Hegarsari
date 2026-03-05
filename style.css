@@ -1,0 +1,157 @@
+body {
+
+    margin: 0;
+
+    font-family: Arial;
+
+    display: flex;
+
+   
+
+}
+
+
+
+.sidebar {
+
+    width: 200px;
+
+    background: #2c3e50;
+
+    color: white;
+
+    height: 100vh;
+
+    padding: 20px;
+
+}
+
+
+
+.sidebar a {
+
+    display: block;
+
+    color: white;
+
+    text-decoration: none;
+
+    margin: 10px 0;
+
+    padding: 8px;
+
+    border-radius: 5px;
+
+}
+
+
+
+.sidebar a:hover {
+
+    background: #34495e;
+
+}
+
+
+
+.content {
+
+    flex: 1;
+
+    padding: 20px;
+
+}
+
+
+
+/* ===== REPORT CARD STYLE ===== */
+
+
+
+.card {
+
+    background: #f4f6f8;
+
+    padding: 20px;
+
+    border-radius: 12px;
+
+    margin-bottom: 20px;
+
+}
+
+
+
+.card h2 {
+
+    font-size: 16px;
+
+    color: #666;
+
+    margin-bottom: 8px;
+
+}
+
+
+
+.value {
+
+    font-size: 23px;
+
+    font-weight: bold;
+
+    padding-left: 20px;
+
+    border-left: 4px solid #ddd;
+
+    margin-left: 20px;
+
+   
+
+}
+
+
+/* Styling Tombol Umum agar konsisten */
+button {
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px; /* Sudut membulat yang pas, tidak kaku */
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease; /* Transisi halus saat diklik/hover */
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Tombol Tambah (Warna Hijau/Biru Soft) */
+.btn-add {
+    background-color: #3498db;
+    color: white;
+}
+
+/* Tombol Hapus (Merah yang lebih Elegan, bukan merah menyala) */
+.btn-danger {
+    background-color: #ff7675; /* Merah pastel yang nyaman di mata */
+    color: white;
+}
+
+/* Tombol Reset (Outline saja agar tidak terlalu dominan) */
+.btn-reset {
+    background-color: transparent;
+    border: 1.5px solid #e17055;
+    color: #e17055;
+}
+
+/* Efek saat Kursor di atas Tombol */
+button:hover {
+    transform: translateY(-2px); /* Tombol sedikit 'mengapung' */
+    filter: brightness(1.1); /* Warnanya sedikit lebih cerah */
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Efek saat Tombol diklik */
+button:active {
+    transform: translateY(0);
+}

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Search Resi - POS Roti</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .card {
+            background: #fff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            max-width: 600px;
+        }
+        input { padding: 12px; width: 70%; border: 1px solid #ddd; border-radius: 8px; outline: none; }
+        button { padding: 12px 20px; background: #3498db; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .hasil { margin-top: 25px; padding: 20px; border-radius: 10px; border-left: 5px solid #3498db; background: #f9f9f9; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <h2>🍞 Hegarsari</h2>
+    <a href="index.html">🏠 Dashboard</a>
+    <a href="sales.html">🛒 Sales</a>
+    <a href="report.html">📊 Report</a>
+    <a href="search.html" style="background: #34495e;">🔎 Search Resi</a>
+</div>
+
+<div class="content">
+    <h1>Pencarian Resi (Cloud Search)</h1>
+
+    <div class="card">
+        <input type="text" id="inputResi" placeholder="Contoh: ROTI-12345678">
+        <button onclick="cariResi()">🔍 Cari</button>
+        <div id="hasil"></div>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyD0hNlCjszxB_3dPEJngPAFknfxiImK6Nc",
+        authDomain: "roti-hegarsari.firebaseapp.com",
+        databaseURL: "https://roti-hegarsari-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "roti-hegarsari",
+        storageBucket: "roti-hegarsari.firebasestorage.app",
+        messagingSenderId: "770636746020",
+        appId: "1:770636746020:web:e7c12761ad3e295271b7b1"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    function cariResi() {
+        const input = document.getElementById("inputResi").value.trim();
+        const hasilDiv = document.getElementById("hasil");
+        hasilDiv.innerHTML = "Sedang mencari...";
+
+        if (!input) {
+            alert("Masukkan No Resi dulu!");
+            hasilDiv.innerHTML = "";
+            return;
+        }
+
+        // Ambil data transaksi sekali saja (once) untuk pencarian
+        database.ref('transaksi/').once('value').then((snapshot) => {
+            const dataTrans = snapshot.val();
+            let ditemukan = null;
+
+            for (let key in dataTrans) {
+                if (dataTrans[key].noResi === input) {
+                    ditemukan = dataTrans[key];
+                    break;
+                }
+            }
+
+            if (!ditemukan) {
+                hasilDiv.innerHTML = "<div class='hasil'>❌ Transaksi tidak ditemukan di Cloud.</div>";
+            } else {
+                let html = `<div class='hasil'>
+                    <b>No Resi:</b> ${ditemukan.noResi}<br>
+                    <b>Tanggal:</b> ${ditemukan.tanggal}<br>
+                    <hr>`;
+                
+                ditemukan.items.forEach(item => {
+                    html += `${item.nama} x${item.qty} = Rp ${(item.harga * item.qty).toLocaleString()}<br>`;
+                });
+
+                html += `<hr><b>Total Bayar:</b> Rp ${ditemukan.total.toLocaleString()}</div>`;
+                hasilDiv.innerHTML = html;
+            }
+        });
+    }
+</script>
+
+</body>
+</html>

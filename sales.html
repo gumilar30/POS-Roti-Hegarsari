@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sales - Roti Hegarsari</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="sidebar">
+        <h2>🍞 Hegarsari</h2>
+        <a href="index.html">🏠 Dashboard</a>
+        <a href="sales.html" style="background: #34495e;">🛒 Sales</a>
+        <a href="report.html">📊 Report</a>
+        <a href="admin.html">⚙️ Admin</a>
+    </div>
+
+    <div class="content">
+        <h1>Kasir Penjualan (Live Cloud)</h1>
+        <div style="display: flex; gap: 20px;">
+            <div class="card" style="flex: 1;">
+                <h3>Menu Roti</h3>
+                <div id="daftarProduk">Memuat stok...</div>
+            </div>
+            <div class="card" style="width: 300px;">
+                <h3>Keranjang 🛒</h3>
+                <div id="cart"></div>
+                <hr>
+                <h4>Total: Rp <span id="total">0</span></h4>
+                <button onclick="checkout()" style="width:100%; background:#27ae60; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer;">Selesaikan Pesanan</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyD0hNlCjszxB_3dPEJngPAFknfxiImK6Nc",
+            authDomain: "roti-hegarsari.firebaseapp.com",
+            databaseURL: "https://roti-hegarsari-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "roti-hegarsari",
+            storageBucket: "roti-hegarsari.firebasestorage.app",
+            messagingSenderId: "770636746020",
+            appId: "1:770636746020:web:e7c12761ad3e295271b7b1"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        let produk = [];
+        let cart = [];
+
+        // Ambil Produk Real-time
+        database.ref('produk/').on('value', (snapshot) => {
+            produk = snapshot.val() || [];
+            renderProduk();
+        });
+
+        function renderProduk() {
+            const container = document.getElementById("daftarProduk");
+            container.innerHTML = "";
+            produk.forEach((item, index) => {
+                container.innerHTML += `
+                    <div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #ddd;">
+                        <span>${item.nama} (Stok: ${item.stok})</span>
+                        <span>Rp ${item.harga.toLocaleString()} 
+                        <button onclick="tambahKeCart(${index})" style="background:#3498db; color:white; border:none; border-radius:3px; cursor:pointer;">+</button></span>
+                    </div>`;
+            });
+        }
+
+        function tambahKeCart(index) {
+            if (produk[index].stok <= 0) return alert("Stok habis!");
+            let itemCart = cart.find(c => c.nama === produk[index].nama);
+            if (itemCart) { itemCart.qty++; } 
+            else { cart.push({...produk[index], qty: 1}); }
+            produk[index].stok--;
+            renderCart(); renderProduk();
+        }
+
+        function renderCart() {
+            const cartDiv = document.getElementById("cart");

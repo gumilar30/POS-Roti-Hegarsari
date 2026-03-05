@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin - POS Roti Hegarsari</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="sidebar">
+        <h2>🍞 Admin Panel</h2>
+        <a href="index.html">🏠 Dashboard</a>
+        <a href="sales.html">🛒 Sales</a>
+        <a href="report.html">📊 Report</a>
+        <a href="admin.html" style="background: #34495e;">⚙️ Admin</a>
+    </div>
+
+    <div class="content">
+        <h1>Management Produk (Cloud Mode)</h1>
+        
+        <div class="card">
+            <h2>Kontrol Panel</h2>
+            <button onclick="tambahProdukBaru()" style="background: #27ae60; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer;">+ Tambah Produk</button>
+            <button onclick="resetSemuaDataCloud()" style="background: #e74c3c; color: white; padding: 10px 15px; border: none; border-radius: 5px; margin-left: 10px; cursor: pointer;">Reset Semua Data</button>
+        </div>
+
+        <div class="card">
+            <h2>Daftar Stok Saat Ini (Live dari Firebase)</h2>
+            <table border="1" style="width: 100%; border-collapse: collapse; background: white; margin-top: 15px;">
+                <thead>
+                    <tr style="background: #2c3e50; color: white;">
+                        <th style="padding: 10px;">ID</th>
+                        <th>Nama Roti</th>
+                        <th>Harga</th>
+                        <th>Stok</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="tabelProduk"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+    <script>
+        // 1. KONFIGURASI FIREBASE ANDA
+        const firebaseConfig = {
+            apiKey: "AIzaSyD0hNlCjszxB_3dPEJngPAFknfxiImK6Nc",
+            authDomain: "roti-hegarsari.firebaseapp.com",
+            databaseURL: "https://roti-hegarsari-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "roti-hegarsari",
+            storageBucket: "roti-hegarsari.firebasestorage.app",
+            messagingSenderId: "770636746020",
+            appId: "1:770636746020:web:e7c12761ad3e295271b7b1",
+            measurementId: "G-VRCDK5B8JH"
+        };
+
+        // Inisialisasi
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const database = firebase.database();
+        var produk = [];
+
+        // 2. AMBIL DATA REAL-TIME
+        database.ref('produk/').on('value', (snapshot) => {
+            const data = snapshot.val();
+            produk = data ? data : []; 
+            renderTabel(); 
+        });
+
+        function renderTabel() {
+            var html = "";
+            if (produk.length === 0) {
+                html = "<tr><td colspan='5' style='text-align:center; padding:20px;'>Data kosong. Silakan tambah produk.</td></tr>";
+            } else {
+                produk.forEach((p, index) => {
+                    html += `<tr>
+                        <td style="padding: 10px; text-align: center;">${p.id || (index + 1)}</td>
+                        <td style="padding: 10px;">${p.nama}</td>
+                        <td style="padding: 10px;">Rp ${p.harga ? p.harga.toLocaleString() : 0}</td>
+                        <td style="padding: 10px; text-align: center;">${p.stok}</td>
+                        <td style="padding: 10px; text-align: center;">
+                            <button onclick="hapusProduk(${index})" style="background: #c0392b; color:white; border:none; padding: 5px 10px; border-radius:3px; cursor:pointer;">Hapus</button>
+                        </td>
+                    </tr>`;
+                });
+            }
+            document.getElementById("tabelProduk").innerHTML = html;
+        }
+
+        // 3. FUNGSI TAMBAH (PASTIKAN NAMA FUNGSI SAMA DENGAN DI TOMBOL)
+        function tambahProdukBaru() {
+            var nama = prompt("Nama Roti:");
+            var harga = parseInt(prompt("Harga:"));
+            var stok = parseInt(prompt("Stok Awal:"));
+
+            if (nama && !isNaN(harga) && !isNaN(stok)) {
+                var idBaru = produk.length > 0 ? (produk[produk.length - 1].id + 1) : 1;
+                produk.push({ id: idBaru, nama: nama, harga: harga, stok: stok });
+                
+                // Simpan ke Firebase
+                database.ref('produk/').set(produk)
+                    .then(() => alert("Produk berhasil ditambahkan ke Cloud!"))
+                    .catch((error) => alert("Gagal simpan: " + error.message));
+            } else {
+                alert("Input tidak valid!");
+            }
+        }
+
+        function hapusProduk(index) {
+            if (confirm("Hapus produk ini dari Cloud?")) {
+                produk.splice(index, 1);
+                database.ref('produk/').set(produk);
+            }
+        }
+
+        function resetSemuaDataCloud() {
+            if (confirm("⚠️ Hapus SEMUA data di Cloud?")) {
+                database.ref('produk/').remove();
+            }
+        }
+    </script>
+</body>
+</html>

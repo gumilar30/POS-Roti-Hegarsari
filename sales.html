@@ -20,12 +20,34 @@
                 <h3>Menu Roti</h3>
                 <div id="daftarProduk">Memuat stok...</div>
             </div>
-            <div class="card" style="width: 300px;">
+
+            <div class="card" style="width: 350px;">
                 <h3>Keranjang 🛒</h3>
-                <div id="cart"></div>
+                <div id="cart" style="min-height: 100px; margin-bottom: 10px;"></div>
                 <hr>
-                <h4>Total: Rp <span id="total">0</span></h4>
-                <button onclick="checkout()" style="width:100%; background:#27ae60; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer;">Selesaikan Pesanan</button>
+                <h4>Total Tagihan: Rp <span id="total">0</span></h4>
+                
+                <div style="margin-top: 15px;">
+                    <label>Metode Pembayaran:</label>
+                    <select id="metodeBayar" style="width:100%; padding:8px; margin-bottom:10px;" onchange="toggleBayarCash()">
+                        <option value="Cash">Cash / Tunai</option>
+                        <option value="Transfer">Transfer Bank</option>
+                        <option value="QRIS">QRIS</option>
+                        <option value="ShopeePay">ShopeePay</option>
+                        <option value="OVO">OVO / Dana</option>
+                    </select>
+
+                    <div id="panelCash">
+                        <label>Bayar (Uang Tunai):</label>
+                        <input type="number" id="inputBayar" style="width:100%; padding:8px; margin-bottom:5px;" oninput="hitungKembalian()">
+                        <p style="font-weight:bold; color:red;">Kembalian: Rp <span id="kembalian">0</span></p>
+                    </div>
+
+                    <label>Upload Bukti (Opsional):</label>
+                    <input type="file" id="buktiBayar" style="width:100%; margin-bottom:15px;">
+                </div>
+
+                <button onclick="checkout()" style="width:100%; background:#27ae60; color:white; padding:12px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">Selesaikan & Print Resi</button>
             </div>
         </div>
     </div>
@@ -47,60 +69,104 @@
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        let produk = [];
+        let produkObj = {};
         let cart = [];
+        let totalTagihan = 0;
 
-        // Ambil Produk Real-time
+        // Ambil Data dari Firebase
         database.ref('produk/').on('value', (snapshot) => {
-            produk = snapshot.val() || [];
-            renderProduk();
+            const data = snapshot.val();
+            if (data) { produkObj = data; renderProduk(); }
         });
 
         function renderProduk() {
             const container = document.getElementById("daftarProduk");
             container.innerHTML = "";
-            produk.forEach((item, index) => {
+            Object.keys(produkObj).forEach((id) => {
+                const item = produkObj[id];
                 container.innerHTML += `
                     <div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #ddd;">
                         <span>${item.nama} (Stok: ${item.stok})</span>
-                        <span>Rp ${item.harga.toLocaleString()} 
-                        <button onclick="tambahKeCart(${index})" style="background:#3498db; color:white; border:none; border-radius:3px; cursor:pointer;">+</button></span>
+                        <span>Rp ${Number(item.harga).toLocaleString()} 
+                        <button onclick="tambahKeCart('${id}')" style="background:#3498db; color:white; border:none; border-radius:3px; cursor:pointer; padding: 2px 8px;">+</button></span>
                     </div>`;
             });
         }
 
-        function tambahKeCart(index) {
-            if (produk[index].stok <= 0) return alert("Stok habis!");
-            let itemCart = cart.find(c => c.nama === produk[index].nama);
+        function tambahKeCart(id) {
+            const itemAsli = produkObj[id];
+            if (itemAsli.stok <= 0) return alert("Stok habis!");
+            let itemCart = cart.find(c => c.id === id);
             if (itemCart) { itemCart.qty++; } 
-            else { cart.push({...produk[index], qty: 1}); }
-            produk[index].stok--;
+            else { cart.push({...itemAsli, id: id, qty: 1}); }
+            produkObj[id].stok--;
             renderCart(); renderProduk();
         }
 
         function renderCart() {
             const cartDiv = document.getElementById("cart");
-            let total = 0; cartDiv.innerHTML = "";
-            cart.forEach(item => {
-                total += (item.harga * item.qty);
-                cartDiv.innerHTML += `<div>${item.nama} x${item.qty}</div>`;
+            cartDiv.innerHTML = "";
+            totalTagihan = 0;
+            cart.forEach((item) => {
+                const subtotal = item.harga * item.qty;
+                totalTagihan += subtotal;
+                cartDiv.innerHTML += `<div>${item.nama} x${item.qty} - Rp ${subtotal.toLocaleString()}</div>`;
             });
-            document.getElementById("total").innerText = total.toLocaleString();
+            document.getElementById("total").innerText = totalTagihan.toLocaleString();
+            hitungKembalian();
+        }
+
+        function toggleBayarCash() {
+            const metode = document.getElementById("metodeBayar").value;
+            document.getElementById("panelCash").style.display = (metode === "Cash") ? "block" : "none";
+        }
+
+        function hitungKembalian() {
+            const bayar = document.getElementById("inputBayar").value || 0;
+            const kembalian = bayar - totalTagihan;
+            document.getElementById("kembalian").innerText = (kembalian > 0) ? kembalian.toLocaleString() : "0";
         }
 
         function checkout() {
             if (cart.length === 0) return alert("Keranjang kosong!");
-            const transaksiBaru = {
-                noResi: "HEG-" + Date.now(),
-                tanggal: new Date().toLocaleString(),
-                items: cart,
-                total: cart.reduce((sum, item) => sum + (item.harga * item.qty), 0)
+            const metode = document.getElementById("metodeBayar").value;
+            
+            // Simpan ke Riwayat Transaksi (Report)
+            const transID = "TRX-" + Date.now();
+            const dataTransaksi = {
+                id: transID,
+                item: cart,
+                total: totalTagihan,
+                metode: metode,
+                waktu: new Date().toLocaleString()
             };
-            // Simpan Transaksi & Update Stok ke Firebase
-            database.ref('transaksi/').push(transaksiBaru);
-            database.ref('produk/').set(produk); 
-            alert("Berhasil! No Resi: " + transaksiBaru.noResi);
-            cart = []; renderCart();
+
+            const updates = {};
+            cart.forEach(item => { updates['/produk/' + item.id + '/stok'] = item.stok; });
+            updates['/transaksi/' + transID] = dataTransaksi;
+
+            database.ref().update(updates).then(() => {
+                alert("Transaksi Berhasil!");
+                printResi(dataTransaksi);
+                cart = []; renderCart();
+            });
+        }
+
+        function printResi(data) {
+            const win = window.open("", "", "width=300,height=400");
+            let list = data.item.map(i => `<p>${i.nama} x${i.qty} = ${i.harga * i.qty}</p>`).join("");
+            win.document.write(`
+                <div style="font-family:monospace; text-align:center;">
+                    <h3>ROTI HEGARSARI</h3>
+                    <p>${data.waktu}</p>
+                    <hr>${list}<hr>
+                    <p>TOTAL: Rp ${data.total.toLocaleString()}</p>
+                    <p>METODE: ${data.metode}</p>
+                    <p>Terima Kasih</p>
+                </div>
+            `);
+            win.print();
+            win.close();
         }
     </script>
 </body>

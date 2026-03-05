@@ -80,3 +80,28 @@
 
         function renderCart() {
             const cartDiv = document.getElementById("cart");
+            let total = 0; cartDiv.innerHTML = "";
+            cart.forEach(item => {
+                total += (item.harga * item.qty);
+                cartDiv.innerHTML += `<div>${item.nama} x${item.qty}</div>`;
+            });
+            document.getElementById("total").innerText = total.toLocaleString();
+        }
+
+        function checkout() {
+            if (cart.length === 0) return alert("Keranjang kosong!");
+            const transaksiBaru = {
+                noResi: "HEG-" + Date.now(),
+                tanggal: new Date().toLocaleString(),
+                items: cart,
+                total: cart.reduce((sum, item) => sum + (item.harga * item.qty), 0)
+            };
+            // Simpan Transaksi & Update Stok ke Firebase
+            database.ref('transaksi/').push(transaksiBaru);
+            database.ref('produk/').set(produk); 
+            alert("Berhasil! No Resi: " + transaksiBaru.noResi);
+            cart = []; renderCart();
+        }
+    </script>
+</body>
+</html>

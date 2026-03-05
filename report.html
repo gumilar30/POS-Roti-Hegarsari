@@ -6,6 +6,7 @@
     <title>Report - Roti Hegarsari</title>
     <link rel="stylesheet" href="style.css">
     <style>
+        .filter-section { background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 15px; align-items: flex-end; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 25px; }
         .stat-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-left: 5px solid #3498db; }
         .stat-card p { margin: 10px 0 0; font-size: 24px; font-weight: bold; color: #2c3e50; }
@@ -14,7 +15,6 @@
         .badge { background: #e67e22; color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px; }
         th { background: #2c3e50; color: white; padding: 12px; text-align: left; }
         td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; }
-        .filter-box { background: #f1f4f6; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 10px; align-items: center; }
     </style>
 </head>
 <body>
@@ -28,12 +28,14 @@
     </div>
 
     <div class="content">
-        <h1>Laporan Penjualan (Semua Data)</h1>
+        <h1>Laporan Penjualan (Pasti Muncul)</h1>
 
-        <div class="filter-box">
-            <label>Cari Tanggal:</label>
-            <input type="date" id="tglFilter" onchange="muatData()">
-            <button onclick="resetLaporan()" style="padding: 8px 15px; cursor:pointer;">Tampilkan Semua</button>
+        <div class="filter-section">
+            <div style="display: flex; flex-direction: column; gap: 5px;">
+                <label style="font-size: 12px; font-weight: bold;">Pilih Tanggal:</label>
+                <input type="date" id="filterTgl" onchange="muatLaporan()">
+            </div>
+            <button onclick="resetLaporan()" style="padding: 10px 15px; background: #eee; border: none; border-radius: 5px; cursor: pointer;">Tampilkan Semua</button>
         </div>
 
         <div class="stats-grid">
@@ -49,7 +51,7 @@
 
         <div class="top-products">
             <h3 style="margin-top: 0;">🔥 5 Produk Terlaris</h3>
-            <div id="listTopProducts">Menghitung...</div>
+            <div id="listTopProducts">Memuat data...</div>
         </div>
 
         <div class="card">
@@ -58,13 +60,13 @@
                 <thead>
                     <tr>
                         <th>No Resi</th>
-                        <th>Waktu</th>
-                        <th>No. HP</th>
+                        <th>Waktu (Jam)</th>
+                        <th>Metode</th>
                         <th>Total</th>
                     </tr>
                 </thead>
                 <tbody id="tabelReport">
-                    <tr><td colspan="4" align="center">Memuat data dari Cloud...</td></tr>
+                    <tr><td colspan="4" align="center">Menarik data dari Cloud...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -85,67 +87,62 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        function muatData() {
-            const filterInput = document.getElementById('tglFilter').value;
-            let targetTgl = "";
+        function muatLaporan() {
+            const filterVal = document.getElementById('filterTgl').value; 
+            let stringCari = "";
             
-            if (filterInput) {
-                const d = new Date(filterInput);
-                // Format D/M/YYYY sesuai simpanan Sales
-                targetTgl = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+            if (filterVal) {
+                const d = new Date(filterVal);
+                // Menyesuaikan format simpanan Sales: D/M/YYYY
+                stringCari = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
             }
 
             db.ref('transaksi/').once('value', (snap) => {
                 const data = snap.val() || {};
-                let totalOmzet = 0;
-                let count = 0;
-                let productSales = {};
+                let omzet = 0;
+                let totalTrans = 0;
+                let topProd = {};
                 let html = "";
 
-                // Urutkan dari yang terbaru
                 const keys = Object.keys(data).reverse();
-
                 keys.forEach(id => {
                     const t = data[id];
-                    // Jika tidak ada filter atau tanggal cocok
-                    if (!targetTgl || t.waktu.includes(targetTgl)) {
-                        totalOmzet += t.total;
-                        count++;
+                    // Logika Pencarian: Cek apakah tanggal filter ada di dalam teks waktu
+                    if (!stringCari || t.waktu.includes(stringCari)) {
+                        omzet += t.total;
+                        totalTrans++;
                         html += `<tr>
                             <td>${t.id || id}</td>
                             <td>${t.waktu}</td>
-                            <td>${t.customer || '-'}</td>
+                            <td><small>${t.metode || 'Cash'}</small></td>
                             <td><strong>Rp ${t.total.toLocaleString()}</strong></td>
                         </tr>`;
 
                         if(t.item) {
                             t.item.forEach(itm => {
-                                productSales[itm.nama] = (productSales[itm.nama] || 0) + itm.qty;
+                                topProd[itm.nama] = (topProd[itm.nama] || 0) + itm.qty;
                             });
                         }
                     }
                 });
 
-                document.getElementById('totalOmzet').innerText = "Rp " + totalOmzet.toLocaleString();
-                document.getElementById('jumlahTransaksi').innerText = count;
-                document.getElementById('tabelReport').innerHTML = html || "<tr><td colspan='4' align='center'>Data Kosong</td></tr>";
-                renderTop(productSales);
+                document.getElementById('totalOmzet').innerText = "Rp " + omzet.toLocaleString();
+                document.getElementById('jumlahTransaksi').innerText = totalTrans;
+                document.getElementById('tabelReport').innerHTML = html || "<tr><td colspan='4' align='center'>Data tidak ditemukan untuk tanggal ini.</td></tr>";
+                
+                const sorted = Object.entries(topProd).sort((a,b) => b[1]-a[1]).slice(0,5);
+                document.getElementById('listTopProducts').innerHTML = sorted.length ? 
+                    sorted.map(([name, qty]) => `<div class="top-item"><span>${name}</span><span class="badge">${qty} Terjual</span></div>`).join("") 
+                    : "Belum ada penjualan.";
             });
         }
 
-        function renderTop(sales) {
-            const sorted = Object.entries(sales).sort((a,b) => b[1]-a[1]).slice(0,5);
-            document.getElementById('listTopProducts').innerHTML = sorted.length ? 
-                sorted.map(([name, qty]) => `<div class="top-item"><span>${name}</span><span class="badge">${qty} Terjual</span></div>`).join("") 
-                : "Belum ada data penjualan.";
-        }
-
         function resetLaporan() {
-            document.getElementById('tglFilter').value = "";
-            muatData();
+            document.getElementById('filterTgl').value = "";
+            muatLaporan();
         }
 
-        muatData();
+        muatLaporan(); // Panggil otomatis saat buka halaman
     </script>
 </body>
 </html>

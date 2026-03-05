@@ -14,6 +14,16 @@
         #daftarProduk { max-height: 400px; overflow-y: auto; border: 1px solid #eee; border-radius: 4px; }
         .search-box { width: 100%; padding: 10px; margin-bottom: 15px; border: 2px solid #3498db; border-radius: 5px; box-sizing: border-box; }
         .btn-wa { background: #25d366; color: white; margin-top: 5px; width: 100%; padding: 10px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; display: none; }
+        
+        /* GAYA BARU: Garis Atas Bawah untuk Total */
+        .total-highlight {
+            border-top: 3px solid #2c3e50;
+            border-bottom: 3px solid #2c3e50;
+            padding: 15px 0;
+            margin: 15px 0;
+            background-color: #fcfcfc;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -22,6 +32,7 @@
         <a href="index.html">🏠 Dashboard</a>
         <a href="sales.html" style="background: #34495e;">🛒 Sales</a>
         <a href="report.html">📊 Report</a>
+        <a href="search.html">🔍 Search Resi</a>
         <a href="admin.html">⚙️ Admin</a>
     </div>
 
@@ -50,9 +61,20 @@
                         <input type="number" id="inputDiskon" placeholder="0" oninput="renderCart()">
                     </div>
 
-                    <h4 style="margin: 5px 0;">Subtotal: Rp <span id="subtotal">0</span></h4>
-                    <h4 style="margin: 5px 0; color: #e67e22;">Potongan: -Rp <span id="nilaiPotongan">0</span></h4>
-                    <h3 style="margin: 10px 0; color: #2c3e50;">Total: Rp <span id="totalFinal">0</span></h3>
+                    <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 5px;">
+                        <span>Subtotal:</span>
+                        <span>Rp <span id="subtotal">0</span></span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 14px; color: #e67e22; margin-bottom: 5px;">
+                        <span>Potongan Diskon:</span>
+                        <span>-Rp <span id="nilaiPotongan">0</span></span>
+                    </div>
+
+                    <div class="total-highlight">
+                        <h2 style="margin: 0; color: #2c3e50;">
+                            TOTAL: Rp <span id="totalFinal">0</span>
+                        </h2>
+                    </div>
 
                     <div class="input-group">
                         <label>Metode Pembayaran:</label>
@@ -69,11 +91,11 @@
                             <label>Bayar (Tunai):</label>
                             <input type="number" id="inputBayar" oninput="hitungKembalian()">
                         </div>
-                        <p style="font-weight:bold; color: #e74c3c; margin: 0;">Kembalian: Rp <span id="kembalian">0</span></p>
+                        <p style="font-weight:bold; color: #e74c3c; margin: 0; text-align: center;">Kembalian: Rp <span id="kembalian">0</span></p>
                     </div>
                 </div>
 
-                <button onclick="checkout()" style="width:100%; background:#27ae60; color:white; padding:15px; border:none; border-radius:5px; cursor:pointer; font-weight:bold; margin-top: 10px;">Selesaikan & Print</button>
+                <button onclick="checkout()" style="width:100%; background:#27ae60; color:white; padding:15px; border:none; border-radius:5px; cursor:pointer; font-weight:bold; margin-top: 10px; font-size: 16px;">Selesaikan & Print</button>
                 <button id="btnWA" class="btn-wa" onclick="kirimWA()">📱 Kirim Resi ke WhatsApp</button>
             </div>
         </div>
@@ -155,7 +177,8 @@
         }
 
         function hitungKembalian() {
-            const total = parseInt(document.getElementById("totalFinal").innerText.replace(/,/g, '')) || 0;
+            const totalStr = document.getElementById("totalFinal").innerText.replace(/,/g, '');
+            const total = parseInt(totalStr) || 0;
             const bayar = document.getElementById("inputBayar").value || 0;
             const kembalian = bayar - total;
             document.getElementById("kembalian").innerText = (kembalian > 0) ? kembalian.toLocaleString() : "0";
@@ -209,7 +232,7 @@
         function kirimWA() {
             if (!dataTerakhir) return;
             const hp = dataTerakhir.customer;
-            if (hp === "Umum") return alert("Masukkan No HP Customer dulu!");
+            if (hp === "Umum" || hp === "") return alert("Masukkan No HP Customer dulu!");
             
             let text = `*ROTI HEGARSARI*%0A--------------------------%0AID: ${dataTerakhir.id}%0A%0A`;
             dataTerakhir.item.forEach(i => { text += `${i.nama} x${i.qty} = ${ (i.harga*i.qty).toLocaleString() }%0A`; });

@@ -6,12 +6,30 @@
     <title>Sales - Roti Hegarsari</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        /* Tambahan style untuk panel pembayaran agar rapi */
         .payment-section { margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc; }
         .input-group { margin-bottom: 10px; }
         .input-group label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 4px; }
         .input-group input, .input-group select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
         #panelCash { display: block; background: #f9f9f9; padding: 10px; border-radius: 4px; }
+        
+        /* Tambahan agar daftar produk bisa di-scroll jika sangat banyak */
+        #daftarProduk { 
+            max-height: 500px; 
+            overflow-y: auto; 
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+        
+        /* Gaya Bar Pencarian */
+        .search-box {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 2px solid #3498db;
+            border-radius: 5px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
     </style>
 </head>
 <body>
@@ -29,6 +47,9 @@
             
             <div class="card" style="flex: 1; min-width: 300px;">
                 <h3>Menu Roti</h3>
+                
+                <input type="text" id="searchMenu" class="search-box" placeholder="🔍 Cari nama roti..." oninput="renderProduk()">
+                
                 <div id="daftarProduk">Memuat stok...</div>
             </div>
 
@@ -63,11 +84,6 @@
                         </div>
                         <p style="font-weight:bold; color: #e74c3c; margin: 0;">Kembalian: Rp <span id="kembalian">0</span></p>
                     </div>
-
-                    <div class="input-group" style="margin-top: 10px;">
-                        <label>Upload Bukti (Jika Transfer/QRIS):</label>
-                        <input type="file" id="buktiBayar" accept="image/*">
-                    </div>
                 </div>
 
                 <button onclick="checkout()" style="width:100%; background:#27ae60; color:white; padding:15px; border:none; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 16px; margin-top: 10px;">Selesaikan & Print Resi</button>
@@ -96,7 +112,6 @@
         let cart = [];
         let totalTagihan = 0;
 
-        // Ambil Data Produk Real-time
         database.ref('produk/').on('value', (snapshot) => {
             const data = snapshot.val();
             if (data) { 
@@ -109,18 +124,28 @@
 
         function renderProduk() {
             const container = document.getElementById("daftarProduk");
+            const keyword = document.getElementById("searchMenu").value.toLowerCase(); // Ambil kata kunci pencarian
             container.innerHTML = "";
+            
             Object.keys(produkObj).forEach((id) => {
                 const item = produkObj[id];
-                container.innerHTML += `
-                    <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid #eee;">
-                        <div>
-                            <strong style="display:block;">${item.nama}</strong>
-                            <small>Stok: ${item.stok} | Rp ${Number(item.harga).toLocaleString()}</small>
-                        </div>
-                        <button onclick="tambahKeCart('${id}')" style="background:#3498db; color:white; border:none; border-radius:4px; cursor:pointer; padding: 8px 15px; font-weight:bold;">+</button>
-                    </div>`;
+                
+                // FILTER: Hanya tampilkan jika nama roti mengandung kata kunci pencarian
+                if (item.nama.toLowerCase().includes(keyword)) {
+                    container.innerHTML += `
+                        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid #eee;">
+                            <div>
+                                <strong style="display:block;">${item.nama}</strong>
+                                <small>Stok: ${item.stok} | Rp ${Number(item.harga).toLocaleString()}</small>
+                            </div>
+                            <button onclick="tambahKeCart('${id}')" style="background:#3498db; color:white; border:none; border-radius:4px; cursor:pointer; padding: 8px 15px; font-weight:bold;">+</button>
+                        </div>`;
+                }
             });
+            
+            if (container.innerHTML === "") {
+                container.innerHTML = "<p style='padding:10px; color:gray;'>Roti tidak ditemukan...</p>";
+            }
         }
 
         function tambahKeCart(id) {
@@ -162,10 +187,6 @@
         function toggleBayarCash() {
             const metode = document.getElementById("metodeBayar").value;
             document.getElementById("panelCash").style.display = (metode === "Cash") ? "block" : "none";
-            if(metode !== "Cash") {
-                document.getElementById("inputBayar").value = "";
-                document.getElementById("kembalian").innerText = "0";
-            }
         }
 
         function hitungKembalian() {
@@ -176,7 +197,6 @@
 
         function checkout() {
             if (cart.length === 0) return alert("Keranjang masih kosong!");
-            
             const metode = document.getElementById("metodeBayar").value;
             const bayarManual = document.getElementById("inputBayar").value;
             
@@ -198,20 +218,18 @@
                 waktu: new Date().toLocaleString('id-ID')
             };
 
-            // Update Stok & Simpan Transaksi ke Firebase
             const updates = {};
             cart.forEach(item => { updates['/produk/' + item.id + '/stok'] = item.stok; });
             updates['/transaksi/' + transID] = dataTransaksi;
 
             database.ref().update(updates).then(() => {
                 printResi(dataTransaksi);
-                alert("Transaksi Berhasil Disimpan!");
-                // Reset Form
+                alert("Transaksi Berhasil!");
                 cart = [];
                 document.getElementById("customerHP").value = "";
                 document.getElementById("inputBayar").value = "";
                 renderCart();
-            }).catch(err => alert("Gagal menyimpan transaksi: " + err.message));
+            });
         }
 
         function printResi(data) {
@@ -226,50 +244,24 @@
             win.document.write(`
                 <html>
                 <head>
-                    <title>Print Resi - ${data.id}</title>
                     <style>
                         @page { size: 56mm 160mm; margin: 0; }
-                        body { width: 56mm; font-family: 'Courier New', monospace; padding: 4mm; margin: 0; color: #000; }
+                        body { width: 56mm; font-family: 'Courier New', monospace; padding: 4mm; margin: 0; }
                         .center { text-align: center; }
                         .line { border-top: 1px dashed #000; margin: 8px 0; }
-                        .bold { font-weight: bold; }
                     </style>
                 </head>
                 <body onload="window.print(); window.close();">
-                    <div class="center">
-                        <strong style="font-size:16px;">ROTI HEGARSARI</strong><br>
-                        <span style="font-size:10px;">Pelayanan Ramah & Higienis</span>
-                    </div>
+                    <div class="center"><strong>ROTI HEGARSARI</strong></div>
                     <div class="line"></div>
-                    <div style="font-size:10px;">
-                        No: ${data.id}<br>
-                        Waktu: ${data.waktu}<br>
-                        HP Pelanggan: ${data.customer}
-                    </div>
+                    <div style="font-size:10px;">No: ${data.id}<br>Tgl: ${data.waktu}<br>HP: ${data.customer}</div>
                     <div class="line"></div>
                     ${itemHtml}
                     <div class="line"></div>
-                    <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:14px;">
-                        <span>TOTAL:</span>
-                        <span>Rp ${data.total.toLocaleString()}</span>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; font-size:11px; margin-top:4px;">
-                        <span>METODE:</span>
-                        <span>${data.metode}</span>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; font-size:11px;">
-                        <span>BAYAR:</span>
-                        <span>Rp ${Number(data.bayar).toLocaleString()}</span>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; font-size:11px;">
-                        <span>KEMBALI:</span>
-                        <span>Rp ${data.kembalian}</span>
-                    </div>
+                    <div style="display:flex; justify-content:space-between; font-weight:bold;"><span>TOTAL:</span><span>Rp ${data.total.toLocaleString()}</span></div>
+                    <div style="font-size:11px;">METODE: ${data.metode}<br>BAYAR: Rp ${Number(data.bayar).toLocaleString()}<br>KEMBALI: Rp ${data.kembalian}</div>
                     <div class="line"></div>
-                    <div class="center" style="font-size:10px;">
-                        Terima Kasih Atas Kunjungan Anda!<br>
-                        Selamat Menikmati
-                    </div>
+                    <div class="center" style="font-size:10px;">Terima Kasih!</div>
                 </body>
                 </html>
             `);

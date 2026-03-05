@@ -19,8 +19,10 @@
         .input-group { margin-bottom: 10px; }
         .input-group label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 4px; }
         .input-group input, .input-group select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        #panelCash, #panelUpload { display: none; background: #f9f9f9; padding: 10px; border-radius: 4px; margin-top: 10px; }
-        .btn-wa { background: #25d366; color: white; margin-top: 10px; width: 100%; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; display: none; text-align: center; text-decoration: none; }
+        /* Panel Cash Muncul Otomatis */
+        #panelCash { display: block; background: #f9f9f9; padding: 10px; border-radius: 4px; margin-top: 10px; }
+        #panelUpload { display: none; background: #f9f9f9; padding: 10px; border-radius: 4px; margin-top: 10px; }
+        .btn-wa { background: #25d366; color: white; margin-top: 10px; width: 100%; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; display: none; text-align: center; }
     </style>
 </head>
 <body>
@@ -45,7 +47,7 @@
                     <button class="tab-btn" onclick="setFilter('Minuman', this)">Minuman</button>
                 </div>
 
-                <div id="daftarProduk">Memuat...</div>
+                <div id="daftarProduk">Memuat produk...</div>
             </div>
 
             <div class="card" style="width: 350px;">
@@ -63,8 +65,12 @@
                         <input type="number" id="inputDiskon" placeholder="0" oninput="renderCart()">
                     </div>
 
-                    <div style="font-size: 14px;">Subtotal: Rp <span id="valSubtotal">0</span></div>
-                    <div style="font-size: 14px; color: #e67e22;">Potongan: -Rp <span id="valPotongan">0</span></div>
+                    <div style="font-size: 14px; display: flex; justify-content: space-between;">
+                        <span>Subtotal:</span> <span>Rp <span id="valSubtotal">0</span></span>
+                    </div>
+                    <div style="font-size: 14px; color: #e67e22; display: flex; justify-content: space-between;">
+                        <span>Potongan:</span> <span>-Rp <span id="valPotongan">0</span></span>
+                    </div>
                     
                     <div class="total-highlight">
                         <h2 style="margin: 0; color: #2c3e50;">TOTAL: Rp <span id="totalFinal">0</span></h2>
@@ -105,6 +111,7 @@
 
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyD0hNlCjszxB_3dPEJngPAFknfxiImK6Nc",
@@ -123,7 +130,10 @@
         let filterKategori = "Semua";
         let dataTerakhir = null;
 
-        db.ref('produk/').on('value', (snap) => { produkObj = snap.val() || {}; renderProduk(); });
+        db.ref('produk/').on('value', (snap) => { 
+            produkObj = snap.val() || {}; 
+            renderProduk(); 
+        });
 
         function setFilter(kat, btn) {
             filterKategori = kat;
@@ -158,15 +168,17 @@
             let item = cart.find(c => c.id === id);
             if(item) item.qty++; else cart.push({...produkObj[id], id: id, qty: 1});
             produkObj[id].stok--;
-            renderCart(); renderProduk();
+            renderCart(); 
+            renderProduk();
         }
 
         function renderCart() {
             const cartDiv = document.getElementById("cart");
             let subtotal = 0; cartDiv.innerHTML = "";
             cart.forEach(i => {
-                subtotal += i.harga * i.qty;
-                cartDiv.innerHTML += `<div style="display:flex; justify-content:space-between;"><span>${i.nama} x${i.qty}</span><span>Rp ${(i.harga*i.qty).toLocaleString()}</span></div>`;
+                const lineTotal = i.harga * i.qty;
+                subtotal += lineTotal;
+                cartDiv.innerHTML += `<div style="display:flex; justify-content:space-between;"><span>${i.nama} x${i.qty}</span><span>Rp ${lineTotal.toLocaleString()}</span></div>`;
             });
             const persen = document.getElementById("inputDiskon").value || 0;
             const potongan = (persen / 100) * subtotal;
@@ -180,7 +192,8 @@
 
         function handlePaymentMethod() {
             const metode = document.getElementById("metodeBayar").value;
-            document.getElementById("panelCash").style.display = (metode === "Cash") ? "block" : "none";
+            const panelCash = document.getElementById("panelCash");
+            panelCash.style.display = (metode === "Cash") ? "block" : "none";
         }
 
         function toggleUploadSection() {
@@ -189,7 +202,8 @@
         }
 
         function hitungKembalian() {
-            const total = parseInt(document.getElementById("totalFinal").innerText.replace(/,/g, '')) || 0;
+            const totalStr = document.getElementById("totalFinal").innerText.replace(/,/g, '');
+            const total = parseInt(totalStr) || 0;
             const bayar = document.getElementById("inputBayar").value || 0;
             const kembalian = bayar - total;
             document.getElementById("kembalian").innerText = (kembalian > 0) ? kembalian.toLocaleString() : "0";
@@ -199,6 +213,15 @@
             if(cart.length === 0) return alert("Keranjang Kosong!");
             if(!document.getElementById("sudahBayar").checked) return alert("Konfirmasi 'Customer Sudah Bayar' terlebih dahulu!");
             
+            const totalFinal = parseInt(document.getElementById("totalFinal").innerText.replace(/,/g, ''));
+            const metode = document.getElementById("metodeBayar").value;
+
+            // Validasi bayar cash
+            if(metode === "Cash") {
+                const bayar = document.getElementById("inputBayar").value || 0;
+                if(bayar < totalFinal) return alert("Uang bayar kurang!");
+            }
+
             const transID = "TRX-" + Date.now();
             dataTerakhir = {
                 id: transID,
@@ -206,8 +229,8 @@
                 item: [...cart],
                 subtotal: parseInt(document.getElementById("valSubtotal").innerText.replace(/,/g, '')),
                 potongan: parseInt(document.getElementById("valPotongan").innerText.replace(/,/g, '')),
-                total: parseInt(document.getElementById("totalFinal").innerText.replace(/,/g, '')),
-                metode: document.getElementById("metodeBayar").value,
+                total: totalFinal,
+                metode: metode,
                 waktu: new Date().toLocaleString('id-ID')
             };
 
@@ -219,8 +242,18 @@
                 printResi(dataTerakhir);
                 document.getElementById("btnWA").style.display = "block";
                 alert("Transaksi Berhasil!");
-                cart = []; renderCart();
+
+                // RESET SEMUA FIELD
+                cart = []; 
+                document.getElementById("customerHP").value = ""; 
+                document.getElementById("inputDiskon").value = ""; 
+                document.getElementById("inputBayar").value = "";
                 document.getElementById("sudahBayar").checked = false;
+                document.getElementById("metodeBayar").selectedIndex = 0; 
+
+                renderCart(); 
+                renderProduk();
+                handlePaymentMethod();
                 toggleUploadSection();
             });
         }

@@ -7,17 +7,14 @@
     <link rel="stylesheet" href="style.css">
     <style>
         .filter-section { background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 15px; align-items: flex-end; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .filter-group { display: flex; flex-direction: column; gap: 5px; }
-        .filter-group label { font-size: 12px; font-weight: bold; color: #555; }
-        .filter-group input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
-        .btn-filter { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 25px; }
         .stat-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-left: 5px solid #3498db; }
-        .stat-card h3 { margin: 0; font-size: 14px; color: #7f8c8d; }
         .stat-card p { margin: 10px 0 0; font-size: 24px; font-weight: bold; color: #2c3e50; }
         .top-products { background: #fff; padding: 20px; border-radius: 10px; margin-bottom: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         .top-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
         .badge { background: #e67e22; color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+        th { background: #2c3e50; color: white; padding: 12px; text-align: left; }
+        td { padding: 12px; border-bottom: 1px solid #eee; }
     </style>
 </head>
 <body>
@@ -31,19 +28,14 @@
     </div>
 
     <div class="content">
-        <h1>Laporan Penjualan (Flexible)</h1>
+        <h1>Laporan Penjualan (Fixed Mode)</h1>
 
         <div class="filter-section">
-            <div class="filter-group">
-                <label>Dari Tanggal:</label>
-                <input type="date" id="startDate">
+            <div style="display: flex; flex-direction: column; gap: 5px;">
+                <label style="font-size: 12px; font-weight: bold;">Pilih Tanggal:</label>
+                <input type="date" id="filterTanggal" onchange="muatLaporan()">
             </div>
-            <div class="filter-group">
-                <label>Sampai Tanggal:</label>
-                <input type="date" id="endDate">
-            </div>
-            <button class="btn-filter" onclick="muatLaporan()">Terapkan Filter</button>
-            <button onclick="resetFilter()" style="padding: 10px; border: none; background: #eee; border-radius: 5px; cursor: pointer;">Reset</button>
+            <button onclick="resetLaporan()" style="padding: 10px; background: #eee; border: none; border-radius: 5px; cursor: pointer;">Tampilkan Semua</button>
         </div>
 
         <div class="stats-grid">
@@ -59,18 +51,18 @@
 
         <div class="top-products">
             <h3 style="margin-top: 0;">🔥 5 Produk Terlaris</h3>
-            <div id="listTopProducts">Memuat data terlaris...</div>
+            <div id="listTopProducts">Memuat data...</div>
         </div>
 
         <div class="card">
-            <h3>Riwayat Transaksi Terkini</h3>
-            <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+            <h3>Riwayat Transaksi</h3>
+            <table style="width: 100%; border-collapse: collapse;">
                 <thead>
-                    <tr style="background: #2c3e50; color: white; text-align: left;">
-                        <th style="padding: 12px;">No Resi</th>
-                        <th>Tanggal & Waktu</th>
+                    <tr>
+                        <th>No Resi</th>
+                        <th>Waktu</th>
                         <th>Metode</th>
-                        <th>Total Bayar</th>
+                        <th>Total</th>
                     </tr>
                 </thead>
                 <tbody id="tabelReport"></tbody>
@@ -93,17 +85,15 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        document.getElementById('startDate').valueAsDate = new Date();
-        document.getElementById('endDate').valueAsDate = new Date();
-
         function muatLaporan() {
-            const startStr = document.getElementById('startDate').value;
-            const endStr = document.getElementById('endDate').value;
+            const filterVal = document.getElementById('filterTanggal').value; // Format: YYYY-MM-DD
+            let filterString = "";
             
-            const start = new Date(startStr);
-            start.setHours(0,0,0,0);
-            const end = new Date(endStr);
-            end.setHours(23, 59, 59, 999);
+            if (filterVal) {
+                const d = new Date(filterVal);
+                // Ubah ke format "D/M/YYYY" sesuai simpanan Sales
+                filterString = `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+            }
 
             db.ref('transaksi/').once('value', (snap) => {
                 const data = snap.val() || {};
@@ -114,22 +104,19 @@
 
                 Object.keys(data).reverse().forEach(id => {
                     const t = data[id];
-                    // Normalisasi pembersihan format tanggal dari Firebase agar bisa dibaca Date
-                    const cleanWaktu = t.waktu.replace(/\./g, ':');
-                    const tglTransaksi = new Date(cleanWaktu);
-
-                    if (tglTransaksi >= start && tglTransaksi <= end) {
+                    // Cek apakah waktu transaksi mengandung string tanggal yang difilter
+                    if (!filterString || t.waktu.includes(filterString)) {
                         totalOmzet += t.total;
                         count++;
                         tableHtml += `
-                            <tr style="border-bottom: 1px solid #eee;">
-                                <td style="padding: 12px; font-family: monospace;">${t.id || id}</td>
+                            <tr>
+                                <td>${t.id || id}</td>
                                 <td>${t.waktu}</td>
-                                <td><span style="background:#eee; padding:2px 6px; border-radius:4px; font-size:11px;">${t.metode || 'Cash'}</span></td>
-                                <td style="font-weight:bold;">Rp ${t.total.toLocaleString()}</td>
+                                <td>${t.metode || 'Cash'}</td>
+                                <td>Rp ${t.total.toLocaleString()}</td>
                             </tr>`;
                         
-                        if(t.item && Array.isArray(t.item)) {
+                        if(t.item) {
                             t.item.forEach(itm => {
                                 productSales[itm.nama] = (productSales[itm.nama] || 0) + itm.qty;
                             });
@@ -139,38 +126,24 @@
 
                 document.getElementById('totalOmzet').innerText = "Rp " + totalOmzet.toLocaleString();
                 document.getElementById('jumlahTransaksi').innerText = count;
-                document.getElementById('tabelReport').innerHTML = tableHtml || "<tr><td colspan='4' style='text-align:center; padding:20px;'>Tidak ada transaksi di periode ini</td></tr>";
-                
+                document.getElementById('tabelReport').innerHTML = tableHtml || "<tr><td colspan='4' align='center'>Data tidak ditemukan</td></tr>";
                 renderTopProducts(productSales);
             });
         }
 
         function renderTopProducts(salesData) {
-            const container = document.getElementById('listTopProducts');
-            const sorted = Object.entries(salesData)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 5);
-
-            if (sorted.length === 0) {
-                container.innerHTML = "<p style='color:#999;'>Belum ada data penjualan.</p>";
-                return;
-            }
-
-            container.innerHTML = sorted.map(([name, qty], index) => `
-                <div class="top-item">
-                    <span><strong>#${index + 1}</strong> ${name}</span>
-                    <span class="badge">${qty} Terjual</span>
-                </div>
-            `).join("");
+            const sorted = Object.entries(salesData).sort((a, b) => b[1] - a[1]).slice(0, 5);
+            document.getElementById('listTopProducts').innerHTML = sorted.length ? sorted.map(([name, qty]) => `
+                <div class="top-item"><span>${name}</span><span class="badge">${qty} Terjual</span></div>
+            `).join("") : "Belum ada data.";
         }
 
-        function resetFilter() {
-            document.getElementById('startDate').valueAsDate = new Date();
-            document.getElementById('endDate').valueAsDate = new Date();
+        function resetLaporan() {
+            document.getElementById('filterTanggal').value = "";
             muatLaporan();
         }
 
-        muatLaporan();
+        muatLaporan(); // Jalankan otomatis
     </script>
 </body>
 </html>

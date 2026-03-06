@@ -32,7 +32,7 @@
     </div>
 
     <div class="content">
-        <h1>Laporan Penjualan (Flexible + Jam Fix)</h1>
+        <h1>Laporan Penjualan (Universal Fix)</h1>
 
         <div class="filter-section">
             <div class="filter-group">
@@ -96,7 +96,6 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // Set default hari ini
         document.getElementById('startDate').valueAsDate = new Date();
         document.getElementById('endDate').valueAsDate = new Date();
 
@@ -104,11 +103,9 @@
             const startVal = document.getElementById('startDate').value;
             const endVal = document.getElementById('endDate').value;
             
-            const startDate = startVal ? new Date(startVal) : null;
-            if(startDate) startDate.setHours(0,0,0,0);
-            
-            const endDate = endVal ? new Date(endVal) : null;
-            if(endDate) endDate.setHours(23,59,59,999);
+            // Konversi filter input ke objek Date murni tanpa jam
+            const filterStart = startVal ? new Date(startVal + "T00:00:00") : null;
+            const filterEnd = endVal ? new Date(endVal + "T23:59:59") : null;
 
             db.ref('transaksi/').once('value', (snap) => {
                 const data = snap.val() || {};
@@ -117,18 +114,25 @@
                 let topProd = {};
                 let html = "";
 
-                const keys = Object.keys(data).reverse();
-                keys.forEach(id => {
+                Object.keys(data).reverse().forEach(id => {
                     const t = data[id];
                     
-                    // PERBAIKAN: Bersihkan titik pada jam agar Date() bisa membacanya
-                    const cleanWaktu = t.waktu.replace(/\./g, ':');
-                    const tglTrans = new Date(cleanWaktu);
+                    // --- UNIVERSAL PARSING: Menangani format 5/3/2026 atau 3/5/2026 ---
+                    // Mengambil bagian tanggal saja sebelum koma
+                    const datePart = t.waktu.split(',')[0].trim(); 
+                    const p = datePart.split('/');
+                    
+                    // Kita asumsikan format database Anda adalah TANGGAL/BULAN/TAHUN
+                    const day = parseInt(p[0]);
+                    const month = parseInt(p[1]) - 1; // Bulan di JS mulai dari 0
+                    const year = parseInt(p[2]);
+                    
+                    const tglTransMurni = new Date(year, month, day);
 
-                    // Logika Filter: Jika tanggal transaksi masuk dalam rentang
                     let masukFilter = true;
-                    if(startDate && tglTrans < startDate) masukFilter = false;
-                    if(endDate && tglTrans > endDate) masukFilter = false;
+                    // Bandingkan hanya tanggalnya saja (tanpa jam)
+                    if(filterStart && tglTransMurni < filterStart) masukFilter = false;
+                    if(filterEnd && tglTransMurni > filterEnd) masukFilter = false;
 
                     if (masukFilter) {
                         omzet += t.total;

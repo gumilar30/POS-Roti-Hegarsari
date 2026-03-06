@@ -5,17 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Report - Roti Hegarsari</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <style>
         .filter-section { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 15px; align-items: flex-end; box-shadow: 0 2px 5px rgba(0,0,0,0.1); flex-wrap: wrap; }
         .filter-group { display: flex; flex-direction: column; gap: 5px; }
         .filter-group label { font-size: 12px; font-weight: bold; color: #555; }
         .filter-group input { padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
         .btn-filter { background: #3498db; color: white; border: none; padding: 11px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .btn-excel { background: #27ae60; color: white; border: none; padding: 11px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; margin-left: auto; }
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 25px; }
         .stat-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-left: 5px solid #3498db; }
         .stat-card p { margin: 10px 0 0; font-size: 24px; font-weight: bold; color: #2c3e50; }
+        .top-products { background: #fff; padding: 20px; border-radius: 10px; margin-bottom: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .top-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+        .badge { background: #e67e22; color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px; }
         th { background: #2c3e50; color: white; padding: 12px; text-align: left; }
         td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; }
     </style>
@@ -31,7 +32,7 @@
     </div>
 
     <div class="content">
-        <h1>Laporan Penjualan</h1>
+        <h1>Laporan Penjualan (Fixed Range)</h1>
 
         <div class="filter-section">
             <div class="filter-group">
@@ -44,8 +45,6 @@
             </div>
             <button class="btn-filter" onclick="muatLaporan()">Terapkan Filter</button>
             <button onclick="resetLaporan()" style="padding: 11px 15px; background: #eee; border: none; border-radius: 5px; cursor: pointer;">Tampilkan Semua</button>
-            
-            <button class="btn-excel" onclick="downloadExcel()">📗 Download ke Excel</button>
         </div>
 
         <div class="stats-grid">
@@ -59,9 +58,14 @@
             </div>
         </div>
 
+        <div class="top-products">
+            <h3 style="margin-top: 0;">🔥 5 Produk Terlaris</h3>
+            <div id="listTopProducts">Menghitung...</div>
+        </div>
+
         <div class="card">
             <h3>Riwayat Transaksi</h3>
-            <table id="tabelRiwayat" style="width: 100%; border-collapse: collapse;">
+            <table style="width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr>
                         <th>No Resi</th>
@@ -71,7 +75,7 @@
                     </tr>
                 </thead>
                 <tbody id="tabelReport">
-                    <tr><td colspan="4" align="center">Memuat data...</td></tr>
+                    <tr><td colspan="4" align="center">Menghubungkan ke Cloud...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -93,21 +97,27 @@
         const db = firebase.database();
 
         function muatLaporan() {
-            const startInput = document.getElementById('startDate').value;
-            const endInput = document.getElementById('endDate').value;
+            const startInput = document.getElementById('startDate').value; // YYYY-MM-DD
+            const endInput = document.getElementById('endDate').value;     // YYYY-MM-DD
 
             db.ref('transaksi/').once('value', (snap) => {
                 const data = snap.val() || {};
-                let omzet = 0; let count = 0; let html = "";
+                let omzet = 0;
+                let count = 0;
+                let tops = {};
+                let html = "";
 
                 Object.keys(data).reverse().forEach(id => {
                     const t = data[id];
-                    const tglMurni = t.tanggalMurni; 
+                    const tglMurni = t.tanggalMurni; // Diambil dari transaksi baru
 
                     let lolos = true;
+                    
+                    // LOGIKA FILTER: Menggunakan kolom tanggalMurni
                     if (startInput || endInput) {
-                        if (!tglMurni) { lolos = false; } 
-                        else {
+                        if (!tglMurni) {
+                            lolos = false; // Data lama disembunyikan jika filter aktif agar tidak error
+                        } else {
                             if (startInput && tglMurni < startInput) lolos = false;
                             if (endInput && tglMurni > endInput) lolos = false;
                         }
@@ -116,33 +126,34 @@
                     if (lolos) {
                         omzet += t.total;
                         count++;
-                        const tanggalSaja = t.waktu ? t.waktu.split(',')[0] : "-"; 
+                        
+                        // MERAPIKAN TAMPILAN: Hanya ambil tanggal sebelum tanda koma
+                        const tanggalSaja = t.waktu.split(',')[0]; 
+
                         html += `<tr>
                             <td>${t.id || id}</td>
                             <td>${tanggalSaja}</td>
                             <td>${t.metode || 'Cash'}</td>
-                            <td>Rp ${t.total.toLocaleString()}</td>
+                            <td><strong>Rp ${t.total.toLocaleString()}</strong></td>
                         </tr>`;
+
+                        if(t.item) {
+                            t.item.forEach(i => {
+                                tops[i.nama] = (tops[i.nama] || 0) + i.qty;
+                            });
+                        }
                     }
                 });
 
                 document.getElementById('totalOmzet').innerText = "Rp " + omzet.toLocaleString();
                 document.getElementById('jumlahTransaksi').innerText = count;
-                document.getElementById('tabelReport').innerHTML = html || "<tr><td colspan='4' align='center'>Data tidak ditemukan</td></tr>";
+                document.getElementById('tabelReport').innerHTML = html || "<tr><td colspan='4' align='center'>Data tidak ditemukan untuk tanggal ini</td></tr>";
+                
+                const sorted = Object.entries(tops).sort((a,b) => b[1]-a[1]).slice(0,5);
+                document.getElementById('listTopProducts').innerHTML = sorted.length ? 
+                    sorted.map(([n, q]) => `<div class="top-item"><span>${n}</span><span class="badge">${q} Terjual</span></div>`).join("") 
+                    : "Belum ada data.";
             });
-        }
-
-        // FUNGSI UNTUK DOWNLOAD EXCEL
-        function downloadExcel() {
-            const tabel = document.getElementById("tabelRiwayat");
-            const start = document.getElementById('startDate').value || "Semua";
-            const end = document.getElementById('endDate').value || "Waktu";
-            
-            // Buat Workbook baru
-            const wb = XLSX.utils.table_to_book(tabel, { sheet: "Laporan Penjualan" });
-            
-            // Simpan file dengan nama berdasarkan tanggal filter
-            XLSX.writeFile(wb, `Laporan_Hegarsari_${start}_sd_${end}.xlsx`);
         }
 
         function resetLaporan() {
@@ -151,6 +162,7 @@
             muatLaporan();
         }
 
+        // Jalankan otomatis saat halaman dibuka
         muatLaporan();
     </script>
 </body>

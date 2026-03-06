@@ -32,12 +32,16 @@
     </div>
 
     <div class="content">
-        <h1>Laporan Penjualan (Final Robust)</h1>
+        <h1>Laporan Penjualan (Pasti Muncul)</h1>
 
         <div class="filter-section">
             <div class="filter-group">
-                <label>Pilih Tanggal:</label>
-                <input type="date" id="filterDate">
+                <label>Dari Tanggal:</label>
+                <input type="date" id="startDate">
+            </div>
+            <div class="filter-group">
+                <label>Sampai Tanggal:</label>
+                <input type="date" id="endDate">
             </div>
             <button class="btn-filter" onclick="muatLaporan()">Terapkan Filter</button>
             <button onclick="resetLaporan()" style="padding: 11px 15px; background: #eee; border: none; border-radius: 5px; cursor: pointer;">Tampilkan Semua</button>
@@ -92,18 +96,13 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // Default ke hari ini
-        document.getElementById('filterDate').valueAsDate = new Date();
-
         function muatLaporan() {
-            const filterInput = document.getElementById('filterDate').value;
-            let targetString = "";
+            const startInput = document.getElementById('startDate').value;
+            const endInput = document.getElementById('endDate').value;
             
-            if (filterInput) {
-                const [y, m, d] = filterInput.split("-");
-                // Menyamakan dengan format database "D/M/YYYY"
-                targetString = `${parseInt(d)}/${parseInt(m)}/${y}`;
-            }
+            // Konversi input date ke objek waktu milidetik untuk perbandingan mudah
+            const startLimit = startInput ? new Date(startInput + "T00:00:00").getTime() : null;
+            const endLimit = endInput ? new Date(endInput + "T23:59:59").getTime() : null;
 
             db.ref('transaksi/').once('value', (snap) => {
                 const data = snap.val() || {};
@@ -112,12 +111,21 @@
                 let tops = {};
                 let html = "";
 
-                const keys = Object.keys(data).reverse();
-                keys.forEach(id => {
+                Object.keys(data).reverse().forEach(id => {
                     const t = data[id];
                     
-                    // Pencocokan Teks: Cek apakah waktu mengandung tanggal target
-                    if (!targetString || t.waktu.includes(targetString)) {
+                    // Cara paling aman: Ubah string waktu apapun dari database menjadi objek Date
+                    // Kita ganti titik dengan titik dua agar format jam Indonesia terbaca browser
+                    const cleanTime = t.waktu.replace(/\./g, ':');
+                    const timeObj = new Date(cleanTime);
+                    const timeMs = timeObj.getTime();
+
+                    let lolos = true;
+                    // Filter hanya aktif jika user mengisi input tanggal
+                    if (startLimit && timeMs < startLimit) lolos = false;
+                    if (endLimit && timeMs > endLimit) lolos = false;
+
+                    if (lolos) {
                         omzet += t.total;
                         count++;
                         html += `<tr>
@@ -137,7 +145,7 @@
 
                 document.getElementById('totalOmzet').innerText = "Rp " + omzet.toLocaleString();
                 document.getElementById('jumlahTransaksi').innerText = count;
-                document.getElementById('tabelReport').innerHTML = html || "<tr><td colspan='4' align='center'>Data tidak ditemukan.</td></tr>";
+                document.getElementById('tabelReport').innerHTML = html || "<tr><td colspan='4' align='center'>Data tidak ditemukan</td></tr>";
                 
                 const sorted = Object.entries(tops).sort((a,b) => b[1]-a[1]).slice(0,5);
                 document.getElementById('listTopProducts').innerHTML = sorted.length ? 
@@ -147,10 +155,12 @@
         }
 
         function resetLaporan() {
-            document.getElementById('filterDate').value = "";
+            document.getElementById('startDate').value = "";
+            document.getElementById('endDate').value = "";
             muatLaporan();
         }
 
+        // Jalankan otomatis saat halaman dibuka
         muatLaporan();
     </script>
 </body>

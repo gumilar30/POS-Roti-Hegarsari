@@ -14,6 +14,12 @@
         .prod-card img { width: 100%; height: 100px; object-fit: cover; border-radius: 5px; margin-bottom: 8px; }
         .prod-card h4 { margin: 5px 0; font-size: 14px; }
         .btn-add { width: 100%; background: #3498db; color: white; border: none; padding: 8px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        
+        /* Style baru untuk tombol hapus di keranjang */
+        .cart-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px dashed #eee; }
+        .btn-remove { background: #e74c3c; color: white; border: none; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 10px; }
+        .btn-remove:hover { background: #c0392b; }
+
         .total-highlight { border-top: 3px solid #2c3e50; border-bottom: 3px solid #2c3e50; padding: 15px 0; margin: 15px 0; background: #fcfcfc; text-align: center; }
         .input-group { margin-bottom: 10px; }
         .input-group label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 4px; }
@@ -179,12 +185,35 @@
             renderCart(); renderProduk();
         }
 
+        // FUNGSI BARU: Untuk menghapus/mengurangi item dari keranjang
+        function hapusDariCart(id) {
+            let itemIndex = cart.findIndex(c => c.id === id);
+            if (itemIndex > -1) {
+                // Kembalikan stok ke tampilan sementara
+                produkObj[id].stok++;
+                
+                if (cart[itemIndex].qty > 1) {
+                    cart[itemIndex].qty--;
+                } else {
+                    cart.splice(itemIndex, 1);
+                }
+            }
+            renderCart(); renderProduk();
+        }
+
         function renderCart() {
             const cartDiv = document.getElementById("cart");
             let subtotal = 0; cartDiv.innerHTML = "";
             cart.forEach(i => {
                 subtotal += i.harga * i.qty;
-                cartDiv.innerHTML += `<div style="display:flex; justify-content:space-between;"><span>${i.nama} x${i.qty}</span><span>Rp ${(i.harga*i.qty).toLocaleString()}</span></div>`;
+                cartDiv.innerHTML += `
+                    <div class="cart-item">
+                        <span>${i.nama} x${i.qty}</span>
+                        <div>
+                            <span>Rp ${(i.harga*i.qty).toLocaleString()}</span>
+                            <button class="btn-remove" onclick="hapusDariCart('${i.id}')">✕</button>
+                        </div>
+                    </div>`;
             });
             const persen = document.getElementById("inputDiskon").value || 0;
             const potongan = (persen / 100) * subtotal;
@@ -215,7 +244,6 @@
             if(cart.length === 0) return alert("Keranjang Kosong!");
             if(!document.getElementById("sudahBayar").checked) return alert("Konfirmasi 'Customer Sudah Bayar'!");
             
-            // --- GENERATE TANGGAL MURNI UNTUK FILTER LAPORAN ---
             const skrg = new Date();
             const yyyy = skrg.getFullYear();
             const mm = String(skrg.getMonth() + 1).padStart(2, '0');
@@ -230,7 +258,7 @@
                 total: parseInt(document.getElementById("totalFinal").innerText.replace(/,/g, '')),
                 metode: document.getElementById("metodeBayar").value,
                 waktu: skrg.toLocaleString('id-ID'),
-                tanggalMurni: formatTanggalMurni // Kolom Kunci untuk Laporan
+                tanggalMurni: formatTanggalMurni
             };
 
             const updates = {};

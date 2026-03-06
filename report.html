@@ -32,16 +32,12 @@
     </div>
 
     <div class="content">
-        <h1>Laporan Penjualan (Universal Fix)</h1>
+        <h1>Laporan Penjualan (Final Robust)</h1>
 
         <div class="filter-section">
             <div class="filter-group">
-                <label>Dari Tanggal:</label>
-                <input type="date" id="startDate">
-            </div>
-            <div class="filter-group">
-                <label>Sampai Tanggal:</label>
-                <input type="date" id="endDate">
+                <label>Pilih Tanggal:</label>
+                <input type="date" id="filterDate">
             </div>
             <button class="btn-filter" onclick="muatLaporan()">Terapkan Filter</button>
             <button onclick="resetLaporan()" style="padding: 11px 15px; background: #eee; border: none; border-radius: 5px; cursor: pointer;">Tampilkan Semua</button>
@@ -96,76 +92,62 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        document.getElementById('startDate').valueAsDate = new Date();
-        document.getElementById('endDate').valueAsDate = new Date();
+        // Default ke hari ini
+        document.getElementById('filterDate').valueAsDate = new Date();
 
         function muatLaporan() {
-            const startVal = document.getElementById('startDate').value;
-            const endVal = document.getElementById('endDate').value;
+            const filterInput = document.getElementById('filterDate').value;
+            let targetString = "";
             
-            // Konversi filter input ke objek Date murni tanpa jam
-            const filterStart = startVal ? new Date(startVal + "T00:00:00") : null;
-            const filterEnd = endVal ? new Date(endVal + "T23:59:59") : null;
+            if (filterInput) {
+                const [y, m, d] = filterInput.split("-");
+                // Menyamakan dengan format database "D/M/YYYY"
+                targetString = `${parseInt(d)}/${parseInt(m)}/${y}`;
+            }
 
             db.ref('transaksi/').once('value', (snap) => {
                 const data = snap.val() || {};
                 let omzet = 0;
-                let totalTrans = 0;
-                let topProd = {};
+                let count = 0;
+                let tops = {};
                 let html = "";
 
-                Object.keys(data).reverse().forEach(id => {
+                const keys = Object.keys(data).reverse();
+                keys.forEach(id => {
                     const t = data[id];
                     
-                    // --- UNIVERSAL PARSING: Menangani format 5/3/2026 atau 3/5/2026 ---
-                    // Mengambil bagian tanggal saja sebelum koma
-                    const datePart = t.waktu.split(',')[0].trim(); 
-                    const p = datePart.split('/');
-                    
-                    // Kita asumsikan format database Anda adalah TANGGAL/BULAN/TAHUN
-                    const day = parseInt(p[0]);
-                    const month = parseInt(p[1]) - 1; // Bulan di JS mulai dari 0
-                    const year = parseInt(p[2]);
-                    
-                    const tglTransMurni = new Date(year, month, day);
-
-                    let masukFilter = true;
-                    // Bandingkan hanya tanggalnya saja (tanpa jam)
-                    if(filterStart && tglTransMurni < filterStart) masukFilter = false;
-                    if(filterEnd && tglTransMurni > filterEnd) masukFilter = false;
-
-                    if (masukFilter) {
+                    // Pencocokan Teks: Cek apakah waktu mengandung tanggal target
+                    if (!targetString || t.waktu.includes(targetString)) {
                         omzet += t.total;
-                        totalTrans++;
+                        count++;
                         html += `<tr>
                             <td>${t.id || id}</td>
                             <td>${t.waktu}</td>
-                            <td><small>${t.metode || 'Cash'}</small></td>
+                            <td>${t.metode || 'Cash'}</td>
                             <td><strong>Rp ${t.total.toLocaleString()}</strong></td>
                         </tr>`;
 
                         if(t.item) {
-                            t.item.forEach(itm => {
-                                topProd[itm.nama] = (topProd[itm.nama] || 0) + itm.qty;
+                            t.item.forEach(i => {
+                                tops[i.nama] = (tops[i.nama] || 0) + i.qty;
                             });
                         }
                     }
                 });
 
                 document.getElementById('totalOmzet').innerText = "Rp " + omzet.toLocaleString();
-                document.getElementById('jumlahTransaksi').innerText = totalTrans;
-                document.getElementById('tabelReport').innerHTML = html || "<tr><td colspan='4' align='center'>Data tidak ditemukan di rentang ini.</td></tr>";
+                document.getElementById('jumlahTransaksi').innerText = count;
+                document.getElementById('tabelReport').innerHTML = html || "<tr><td colspan='4' align='center'>Data tidak ditemukan.</td></tr>";
                 
-                const sorted = Object.entries(topProd).sort((a,b) => b[1]-a[1]).slice(0,5);
+                const sorted = Object.entries(tops).sort((a,b) => b[1]-a[1]).slice(0,5);
                 document.getElementById('listTopProducts').innerHTML = sorted.length ? 
-                    sorted.map(([name, qty]) => `<div class="top-item"><span>${name}</span><span class="badge">${qty} Terjual</span></div>`).join("") 
+                    sorted.map(([n, q]) => `<div class="top-item"><span>${n}</span><span class="badge">${q} Terjual</span></div>`).join("") 
                     : "Belum ada data.";
             });
         }
 
         function resetLaporan() {
-            document.getElementById('startDate').value = "";
-            document.getElementById('endDate').value = "";
+            document.getElementById('filterDate').value = "";
             muatLaporan();
         }
 

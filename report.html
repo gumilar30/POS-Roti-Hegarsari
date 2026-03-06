@@ -32,7 +32,7 @@
     </div>
 
     <div class="content">
-        <h1>Laporan Penjualan (Pasti Muncul)</h1>
+        <h1>Laporan Penjualan (Fixed Stability)</h1>
 
         <div class="filter-section">
             <div class="filter-group">
@@ -99,10 +99,6 @@
         function muatLaporan() {
             const startInput = document.getElementById('startDate').value;
             const endInput = document.getElementById('endDate').value;
-            
-            // Konversi input date ke objek waktu milidetik untuk perbandingan mudah
-            const startLimit = startInput ? new Date(startInput + "T00:00:00").getTime() : null;
-            const endLimit = endInput ? new Date(endInput + "T23:59:59").getTime() : null;
 
             db.ref('transaksi/').once('value', (snap) => {
                 const data = snap.val() || {};
@@ -113,17 +109,20 @@
 
                 Object.keys(data).reverse().forEach(id => {
                     const t = data[id];
-                    
-                    // Cara paling aman: Ubah string waktu apapun dari database menjadi objek Date
-                    // Kita ganti titik dengan titik dua agar format jam Indonesia terbaca browser
-                    const cleanTime = t.waktu.replace(/\./g, ':');
-                    const timeObj = new Date(cleanTime);
-                    const timeMs = timeObj.getTime();
+                    const tglData = t.tanggalMurni; // Kolom baru dari sales.html
 
                     let lolos = true;
-                    // Filter hanya aktif jika user mengisi input tanggal
-                    if (startLimit && timeMs < startLimit) lolos = false;
-                    if (endLimit && timeMs > endLimit) lolos = false;
+                    
+                    // LOGIKA FILTER
+                    if (!tglData) {
+                        // Untuk data lama yang tidak punya tanggalMurni:
+                        // Hanya muncul jika user menekan "Tampilkan Semua" (input kosong)
+                        if (startInput || endInput) lolos = false;
+                    } else {
+                        // Untuk data baru (berdasarkan kolom tanggalMurni)
+                        if (startInput && tglData < startInput) lolos = false;
+                        if (endInput && tglData > endInput) lolos = false;
+                    }
 
                     if (lolos) {
                         omzet += t.total;

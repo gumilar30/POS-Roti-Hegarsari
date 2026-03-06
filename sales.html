@@ -125,7 +125,6 @@
         let filterKategori = "Semua";
         let dataTerakhir = null;
 
-        // Ambil data produk dan generate tab kategori secara otomatis
         db.ref('produk/').on('value', (snap) => { 
             produkObj = snap.val() || {}; 
             generateCategoryTabs();
@@ -135,16 +134,10 @@
         function generateCategoryTabs() {
             const tabContainer = document.getElementById("tabKategori");
             const categories = new Set();
-            
-            // Ambil semua kategori unik dari data produk di Firebase
             Object.values(produkObj).forEach(p => {
                 if(p.kategori) categories.add(p.kategori);
             });
-
-            // Reset tab dan tambahkan tombol "Semua"
             tabContainer.innerHTML = `<button class="tab-btn ${filterKategori === 'Semua' ? 'active' : ''}" onclick="setFilter('Semua', this)">Semua</button>`;
-            
-            // Tambahkan tombol untuk setiap kategori yang ada
             categories.forEach(cat => {
                 tabContainer.innerHTML += `<button class="tab-btn ${filterKategori === cat ? 'active' : ''}" onclick="setFilter('${cat}', this)">${cat}</button>`;
             });
@@ -161,13 +154,10 @@
             const container = document.getElementById("daftarProduk");
             const keyword = document.getElementById("searchMenu").value.toLowerCase();
             container.innerHTML = "";
-            
             Object.keys(produkObj).forEach(id => {
                 const p = produkObj[id];
-                // Perbaikan Logika Filter: Memastikan pengecekan kategori akurat
                 const cocokKategori = (filterKategori === "Semua") || (p.kategori === filterKategori);
                 const cocokNama = p.nama.toLowerCase().includes(keyword);
-
                 if(cocokKategori && cocokNama) {
                     container.innerHTML += `
                         <div class="prod-card">
@@ -181,7 +171,6 @@
             });
         }
 
-        // Fungsi lainnya (Cart, Payment, Checkout) tetap sama dengan perbaikan pembersihan field
         function tambahKeCart(id) {
             if(produkObj[id].stok <= 0) return alert("Stok Habis!");
             let item = cart.find(c => c.id === id);
@@ -226,6 +215,13 @@
             if(cart.length === 0) return alert("Keranjang Kosong!");
             if(!document.getElementById("sudahBayar").checked) return alert("Konfirmasi 'Customer Sudah Bayar'!");
             
+            // --- GENERATE TANGGAL MURNI UNTUK FILTER LAPORAN ---
+            const skrg = new Date();
+            const yyyy = skrg.getFullYear();
+            const mm = String(skrg.getMonth() + 1).padStart(2, '0');
+            const dd = String(skrg.getDate()).padStart(2, '0');
+            const formatTanggalMurni = `${yyyy}-${mm}-${dd}`;
+
             const transID = "TRX-" + Date.now();
             dataTerakhir = {
                 id: transID,
@@ -233,7 +229,8 @@
                 item: [...cart],
                 total: parseInt(document.getElementById("totalFinal").innerText.replace(/,/g, '')),
                 metode: document.getElementById("metodeBayar").value,
-                waktu: new Date().toLocaleString('id-ID')
+                waktu: skrg.toLocaleString('id-ID'),
+                tanggalMurni: formatTanggalMurni // Kolom Kunci untuk Laporan
             };
 
             const updates = {};
@@ -244,11 +241,12 @@
                 printResi(dataTerakhir);
                 document.getElementById("btnWA").style.display = "block";
                 alert("Berhasil!");
-                // Reset Fields
                 cart = []; document.getElementById("customerHP").value = ""; 
                 document.getElementById("inputDiskon").value = ""; 
+                document.getElementById("inputBayar").value = "";
                 document.getElementById("sudahBayar").checked = false;
                 renderCart(); renderProduk(); toggleUploadSection();
+                handlePaymentMethod();
             });
         }
 

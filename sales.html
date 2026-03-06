@@ -15,9 +15,9 @@
         .prod-card h4 { margin: 5px 0; font-size: 14px; }
         .btn-add { width: 100%; background: #3498db; color: white; border: none; padding: 8px; border-radius: 5px; cursor: pointer; font-weight: bold; }
         
-        /* Style baru untuk tombol hapus di keranjang */
+        /* Style untuk Item di Keranjang dengan Tombol Hapus */
         .cart-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px dashed #eee; }
-        .btn-remove { background: #e74c3c; color: white; border: none; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 10px; }
+        .btn-remove { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-left: 10px; }
         .btn-remove:hover { background: #c0392b; }
 
         .total-highlight { border-top: 3px solid #2c3e50; border-bottom: 3px solid #2c3e50; padding: 15px 0; margin: 15px 0; background: #fcfcfc; text-align: center; }
@@ -185,13 +185,11 @@
             renderCart(); renderProduk();
         }
 
-        // FUNGSI BARU: Untuk menghapus/mengurangi item dari keranjang
+        // Fungsi Hapus Item dari Keranjang
         function hapusDariCart(id) {
             let itemIndex = cart.findIndex(c => c.id === id);
             if (itemIndex > -1) {
-                // Kembalikan stok ke tampilan sementara
-                produkObj[id].stok++;
-                
+                produkObj[id].stok++; // Kembalikan stok sementara ke UI
                 if (cart[itemIndex].qty > 1) {
                     cart[itemIndex].qty--;
                 } else {
@@ -206,13 +204,14 @@
             let subtotal = 0; cartDiv.innerHTML = "";
             cart.forEach(i => {
                 subtotal += i.harga * i.qty;
+                // Render Baris Keranjang dengan Tombol Hapus
                 cartDiv.innerHTML += `
                     <div class="cart-item">
-                        <span>${i.nama} x${i.qty}</span>
-                        <div>
-                            <span>Rp ${(i.harga*i.qty).toLocaleString()}</span>
-                            <button class="btn-remove" onclick="hapusDariCart('${i.id}')">✕</button>
+                        <div style="flex:1;">
+                            <strong>${i.nama}</strong><br>
+                            <small>x${i.qty} - Rp ${(i.harga*i.qty).toLocaleString()}</small>
                         </div>
+                        <button class="btn-remove" onclick="hapusDariCart('${i.id}')">✕</button>
                     </div>`;
             });
             const persen = document.getElementById("inputDiskon").value || 0;
@@ -235,7 +234,8 @@
         }
 
         function hitungKembalian() {
-            const total = parseInt(document.getElementById("totalFinal").innerText.replace(/,/g, '')) || 0;
+            const totalStr = document.getElementById("totalFinal").innerText.replace(/,/g, '');
+            const total = parseInt(totalStr) || 0;
             const bayar = document.getElementById("inputBayar").value || 0;
             document.getElementById("kembalian").innerText = (bayar - total > 0) ? (bayar - total).toLocaleString() : "0";
         }
@@ -248,7 +248,7 @@
             const yyyy = skrg.getFullYear();
             const mm = String(skrg.getMonth() + 1).padStart(2, '0');
             const dd = String(skrg.getDate()).padStart(2, '0');
-            const formatTanggalMurni = `${yyyy}-${mm}-${dd}`;
+            const formatTanggalMurni = `${yyyy}-${mm}-${dd}`; // Untuk Filter Report
 
             const transID = "TRX-" + Date.now();
             dataTerakhir = {
@@ -258,7 +258,7 @@
                 total: parseInt(document.getElementById("totalFinal").innerText.replace(/,/g, '')),
                 metode: document.getElementById("metodeBayar").value,
                 waktu: skrg.toLocaleString('id-ID'),
-                tanggalMurni: formatTanggalMurni
+                tanggalMurni: formatTanggalMurni // Simpan kolom baru
             };
 
             const updates = {};

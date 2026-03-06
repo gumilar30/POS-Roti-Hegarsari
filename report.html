@@ -19,6 +19,7 @@
         .badge { background: #e67e22; color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px; }
         th { background: #2c3e50; color: white; padding: 12px; text-align: left; }
         td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; }
+        .btn-logout { background: #c0392b; color: white; margin-top: 20px; text-align: left !important; }
     </style>
 </head>
 <body>
@@ -29,11 +30,11 @@
         <a href="report.html" style="background: #34495e;">📊 Report</a>
         <a href="search.html">🔍 Search Resi</a>
         <a href="admin.html">⚙️ Admin</a>
+        <a href="#" onclick="logout()" class="btn-logout">🚪 Logout</a>
     </div>
 
     <div class="content">
         <h1>Laporan Penjualan (Fixed Range)</h1>
-
         <div class="filter-section">
             <div class="filter-group">
                 <label>Dari Tanggal:</label>
@@ -82,6 +83,7 @@
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <script>
         const firebaseConfig = {
@@ -96,9 +98,18 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
+        // Gembok Keamanan Login
+        firebase.auth().onAuthStateChanged((user) => {
+            if (!user) { window.location.href = "login.html"; }
+        });
+
+        function logout() {
+            firebase.auth().signOut().then(() => { window.location.href = "login.html"; });
+        }
+
         function muatLaporan() {
-            const startInput = document.getElementById('startDate').value; // YYYY-MM-DD
-            const endInput = document.getElementById('endDate').value;     // YYYY-MM-DD
+            const startInput = document.getElementById('startDate').value;
+            const endInput = document.getElementById('endDate').value;
 
             db.ref('transaksi/').once('value', (snap) => {
                 const data = snap.val() || {};
@@ -109,46 +120,32 @@
 
                 Object.keys(data).reverse().forEach(id => {
                     const t = data[id];
-                    const tglMurni = t.tanggalMurni; // Diambil dari transaksi baru
-
+                    const tglMurni = t.tanggalMurni;
                     let lolos = true;
-                    
-                    // LOGIKA FILTER: Menggunakan kolom tanggalMurni
                     if (startInput || endInput) {
-                        if (!tglMurni) {
-                            lolos = false; // Data lama disembunyikan jika filter aktif agar tidak error
-                        } else {
+                        if (!tglMurni) { lolos = false; } else {
                             if (startInput && tglMurni < startInput) lolos = false;
                             if (endInput && tglMurni > endInput) lolos = false;
                         }
                     }
-
                     if (lolos) {
                         omzet += t.total;
                         count++;
-                        
-                        // MERAPIKAN TAMPILAN: Hanya ambil tanggal sebelum tanda koma
                         const tanggalSaja = t.waktu.split(',')[0]; 
-
                         html += `<tr>
                             <td>${t.id || id}</td>
                             <td>${tanggalSaja}</td>
                             <td>${t.metode || 'Cash'}</td>
                             <td><strong>Rp ${t.total.toLocaleString()}</strong></td>
                         </tr>`;
-
                         if(t.item) {
-                            t.item.forEach(i => {
-                                tops[i.nama] = (tops[i.nama] || 0) + i.qty;
-                            });
+                            t.item.forEach(i => { tops[i.nama] = (tops[i.nama] || 0) + i.qty; });
                         }
                     }
                 });
-
                 document.getElementById('totalOmzet').innerText = "Rp " + omzet.toLocaleString();
                 document.getElementById('jumlahTransaksi').innerText = count;
-                document.getElementById('tabelReport').innerHTML = html || "<tr><td colspan='4' align='center'>Data tidak ditemukan untuk tanggal ini</td></tr>";
-                
+                document.getElementById('tabelReport').innerHTML = html || "<tr><td colspan='4' align='center'>Data tidak ditemukan</td></tr>";
                 const sorted = Object.entries(tops).sort((a,b) => b[1]-a[1]).slice(0,5);
                 document.getElementById('listTopProducts').innerHTML = sorted.length ? 
                     sorted.map(([n, q]) => `<div class="top-item"><span>${n}</span><span class="badge">${q} Terjual</span></div>`).join("") 
@@ -161,8 +158,6 @@
             document.getElementById('endDate').value = "";
             muatLaporan();
         }
-
-        // Jalankan otomatis saat halaman dibuka
         muatLaporan();
     </script>
 </body>

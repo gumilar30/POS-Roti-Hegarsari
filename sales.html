@@ -14,18 +14,14 @@
         .prod-card img { width: 100%; height: 100px; object-fit: cover; border-radius: 5px; margin-bottom: 8px; }
         .prod-card h4 { margin: 5px 0; font-size: 14px; }
         .btn-add { width: 100%; background: #3498db; color: white; border: none; padding: 8px; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        
-        /* Style untuk Item di Keranjang dengan Tombol Hapus */
         .cart-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px dashed #eee; }
         .btn-remove { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-left: 10px; }
-        .btn-remove:hover { background: #c0392b; }
-
         .total-highlight { border-top: 3px solid #2c3e50; border-bottom: 3px solid #2c3e50; padding: 15px 0; margin: 15px 0; background: #fcfcfc; text-align: center; }
         .input-group { margin-bottom: 10px; }
         .input-group label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 4px; }
         .input-group input, .input-group select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        #panelCash, #panelUpload { display: none; background: #f9f9f9; padding: 10px; border-radius: 4px; margin-top: 10px; }
-        .btn-wa { background: #25d366; color: white; margin-top: 10px; width: 100%; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; display: none; text-align: center; }
+        #panelCash { display: block; background: #f9f9f9; padding: 10px; border-radius: 4px; margin-top: 10px; }
+        .btn-logout { background: #c0392b; color: white; margin-top: 20px; text-align: left !important; display: block; padding: 10px 15px; border-radius: 5px; text-decoration: none; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -36,6 +32,7 @@
         <a href="report.html">📊 Report</a>
         <a href="search.html">🔍 Search Resi</a>
         <a href="admin.html">⚙️ Admin</a>
+        <a href="#" onclick="logout()" class="btn-logout">🚪 Logout</a>
     </div>
 
     <div class="content">
@@ -43,251 +40,131 @@
         <div style="display: flex; gap: 20px; flex-wrap: wrap;">
             <div class="card" style="flex: 1; min-width: 350px;">
                 <input type="text" id="searchMenu" placeholder="🔍 Cari nama roti..." oninput="renderProduk()" style="width:100%; padding:10px; margin-bottom:15px; border-radius:5px; border:1px solid #ddd;">
-                
-                <div id="tabKategori" class="tab-menu">
-                    <button class="tab-btn active" onclick="setFilter('Semua', this)">Semua</button>
-                </div>
-
-                <div id="daftarProduk">Memuat produk...</div>
+                <div id="tabKategori" class="tab-menu"><button class="tab-btn active" onclick="setFilter('Semua', this)">Semua</button></div>
+                <div id="daftarProduk">Memuat...</div>
             </div>
-
             <div class="card" style="width: 350px;">
                 <h3>Keranjang 🛒</h3>
                 <div id="cart" style="font-size: 14px; margin-bottom: 10px; min-height: 50px;"></div>
                 <hr>
-                
                 <div class="payment-section">
-                    <div class="input-group">
-                        <label>No. HP Customer (WA):</label>
-                        <input type="number" id="customerHP" placeholder="08123456789">
-                    </div>
-                    <div class="input-group">
-                        <label>Diskon (%):</label>
-                        <input type="number" id="inputDiskon" placeholder="0" oninput="renderCart()">
-                    </div>
-
-                    <div style="font-size: 14px; display: flex; justify-content: space-between;">
-                        <span>Subtotal:</span> <span>Rp <span id="valSubtotal">0</span></span>
-                    </div>
-                    <div style="font-size: 14px; color: #e67e22; display: flex; justify-content: space-between;">
-                        <span>Potongan:</span> <span>-Rp <span id="valPotongan">0</span></span>
-                    </div>
-                    
-                    <div class="total-highlight">
-                        <h2 style="margin: 0; color: #2c3e50;">TOTAL: Rp <span id="totalFinal">0</span></h2>
-                    </div>
-
+                    <div class="input-group"><label>No. HP Customer:</label><input type="number" id="customerHP" placeholder="08123456789"></div>
+                    <div class="input-group"><label>Diskon (%):</label><input type="number" id="inputDiskon" placeholder="0" oninput="renderCart()"></div>
+                    <div class="total-highlight"><h2 style="margin: 0; color: #2c3e50;">TOTAL: Rp <span id="totalFinal">0</span></h2></div>
                     <div class="input-group">
                         <label>Metode Pembayaran:</label>
-                        <select id="metodeBayar" onchange="handlePaymentMethod()">
-                            <option value="Cash">Cash / Tunai</option>
-                            <option value="Transfer">Transfer Bank</option>
-                            <option value="QRIS">QRIS</option>
-                        </select>
+                        <select id="metodeBayar" onchange="handlePaymentMethod()"><option value="Cash">Cash</option><option value="Transfer">Transfer</option><option value="QRIS">QRIS</option></select>
                     </div>
-
-                    <div id="panelCash" style="display: block;">
-                        <label style="font-size: 12px; font-weight: bold;">Bayar (Tunai):</label>
-                        <input type="number" id="inputBayar" placeholder="0" oninput="hitungKembalian()" style="width:100%; padding:8px; margin-bottom:5px;">
-                        <p style="font-weight:bold; color: #e74c3c; margin: 0;">Kembalian: Rp <span id="kembalian">0</span></p>
-                    </div>
-
-                    <div id="panelUpload">
-                        <label style="font-size: 12px; font-weight: bold;">Upload Bukti Bayar:</label>
-                        <input type="file" id="buktiBayar" accept="image/*" style="font-size: 12px; margin-top:5px;">
+                    <div id="panelCash">
+                        <label>Bayar (Tunai):</label>
+                        <input type="number" id="inputBayar" oninput="hitungKembalian()"><p>Kembalian: Rp <span id="kembalian">0</span></p>
                     </div>
                 </div>
-
-                <div style="margin-top: 15px;">
-                    <input type="checkbox" id="sudahBayar" onchange="toggleUploadSection()">
-                    <label for="sudahBayar" style="font-weight: bold; cursor: pointer;"> Customer Sudah Bayar</label>
-                </div>
-
-                <button onclick="checkout()" style="width:100%; background:#27ae60; color:white; padding:15px; border:none; border-radius:5px; font-weight:bold; font-size:16px; cursor:pointer; margin-top: 10px;">Selesaikan & Print</button>
-                
-                <a id="btnWA" class="btn-wa" onclick="kirimWA()">📱 Kirim Resi ke WhatsApp</a>
+                <div style="margin-top: 15px;"><input type="checkbox" id="sudahBayar"><label for="sudahBayar"> Customer Sudah Bayar</label></div>
+                <button onclick="checkout()" style="width:100%; background:#27ae60; color:white; padding:15px; border:none; border-radius:5px; font-weight:bold; cursor:pointer; margin-top: 10px;">Selesaikan & Print</button>
             </div>
         </div>
     </div>
 
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyD0hNlCjszxB_3dPEJngPAFknfxiImK6Nc",
-            authDomain: "roti-hegarsari.firebaseapp.com",
-            databaseURL: "https://roti-hegarsari-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "roti-hegarsari",
-            storageBucket: "roti-hegarsari.firebasestorage.app",
-            messagingSenderId: "770636746020",
-            appId: "1:770636746020:web:e7c12761ad3e295271b7b1"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyD0hNlCjszxB_3dPEJngPAFknfxiImK6Nc",
+        authDomain: "roti-hegarsari.firebaseapp.com",
+        databaseURL: "https://roti-hegarsari-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "roti-hegarsari",
+        storageBucket: "roti-hegarsari.firebasestorage.app",
+        messagingSenderId: "770636746020",
+        appId: "1:770636746020:web:e7c12761ad3e295271b7b1"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
 
-        let produkObj = {};
-        let cart = [];
-        let filterKategori = "Semua";
-        let dataTerakhir = null;
+    auth.onAuthStateChanged((user) => { if (!user) { window.location.href = "login.html"; } });
+    function logout() { auth.signOut().then(() => { window.location.href = "login.html"; }); }
 
-        db.ref('produk/').on('value', (snap) => { 
-            produkObj = snap.val() || {}; 
-            generateCategoryTabs();
-            renderProduk(); 
-        });
+    let produkObj = {}; let cart = []; let filterKategori = "Semua";
 
-        function generateCategoryTabs() {
-            const tabContainer = document.getElementById("tabKategori");
-            const categories = new Set();
-            Object.values(produkObj).forEach(p => {
-                if(p.kategori) categories.add(p.kategori);
-            });
-            tabContainer.innerHTML = `<button class="tab-btn ${filterKategori === 'Semua' ? 'active' : ''}" onclick="setFilter('Semua', this)">Semua</button>`;
-            categories.forEach(cat => {
-                tabContainer.innerHTML += `<button class="tab-btn ${filterKategori === cat ? 'active' : ''}" onclick="setFilter('${cat}', this)">${cat}</button>`;
-            });
-        }
+    db.ref('produk/').on('value', (snap) => { 
+        produkObj = snap.val() || {}; 
+        renderProduk(); 
+    });
 
-        function setFilter(kat, btn) {
-            filterKategori = kat;
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            renderProduk();
-        }
+    function setFilter(kat, btn) {
+        filterKategori = kat;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderProduk();
+    }
 
-        function renderProduk() {
-            const container = document.getElementById("daftarProduk");
-            const keyword = document.getElementById("searchMenu").value.toLowerCase();
-            container.innerHTML = "";
-            Object.keys(produkObj).forEach(id => {
-                const p = produkObj[id];
-                const cocokKategori = (filterKategori === "Semua") || (p.kategori === filterKategori);
-                const cocokNama = p.nama.toLowerCase().includes(keyword);
-                if(cocokKategori && cocokNama) {
-                    container.innerHTML += `
-                        <div class="prod-card">
-                            <img src="${p.foto || 'https://via.placeholder.com/100'}">
-                            <h4>${p.nama}</h4>
-                            <small>Rp ${parseInt(p.harga).toLocaleString()}</small><br>
-                            <small>Stok: ${p.stok}</small>
-                            <button class="btn-add" onclick="tambahKeCart('${id}')">+</button>
-                        </div>`;
-                }
-            });
-        }
-
-        function tambahKeCart(id) {
-            if(produkObj[id].stok <= 0) return alert("Stok Habis!");
-            let item = cart.find(c => c.id === id);
-            if(item) item.qty++; else cart.push({...produkObj[id], id: id, qty: 1});
-            produkObj[id].stok--;
-            renderCart(); renderProduk();
-        }
-
-        // Fungsi Hapus Item dari Keranjang
-        function hapusDariCart(id) {
-            let itemIndex = cart.findIndex(c => c.id === id);
-            if (itemIndex > -1) {
-                produkObj[id].stok++; // Kembalikan stok sementara ke UI
-                if (cart[itemIndex].qty > 1) {
-                    cart[itemIndex].qty--;
-                } else {
-                    cart.splice(itemIndex, 1);
-                }
-            }
-            renderCart(); renderProduk();
-        }
-
-        function renderCart() {
-            const cartDiv = document.getElementById("cart");
-            let subtotal = 0; cartDiv.innerHTML = "";
-            cart.forEach(i => {
-                subtotal += i.harga * i.qty;
-                // Render Baris Keranjang dengan Tombol Hapus
-                cartDiv.innerHTML += `
-                    <div class="cart-item">
-                        <div style="flex:1;">
-                            <strong>${i.nama}</strong><br>
-                            <small>x${i.qty} - Rp ${(i.harga*i.qty).toLocaleString()}</small>
-                        </div>
-                        <button class="btn-remove" onclick="hapusDariCart('${i.id}')">✕</button>
+    function renderProduk() {
+        const container = document.getElementById("daftarProduk");
+        container.innerHTML = "";
+        Object.keys(produkObj).forEach(id => {
+            const p = produkObj[id];
+            if(filterKategori === "Semua" || p.kategori === filterKategori) {
+                container.innerHTML += `
+                    <div class="prod-card">
+                        <img src="${p.foto || ''}" width="100%">
+                        <h4>${p.nama}</h4>
+                        <small>Stok: ${p.stok}</small><br>
+                        <button class="btn-add" onclick="tambahKeCart('${id}')">+</button>
                     </div>`;
-            });
-            const persen = document.getElementById("inputDiskon").value || 0;
-            const potongan = (persen / 100) * subtotal;
-            const total = subtotal - potongan;
-            document.getElementById("valSubtotal").innerText = subtotal.toLocaleString();
-            document.getElementById("valPotongan").innerText = potongan.toLocaleString();
-            document.getElementById("totalFinal").innerText = total.toLocaleString();
-            hitungKembalian();
+            }
+        });
+    }
+
+    function tambahKeCart(id) {
+        if(produkObj[id].stok <= 0) return alert("Stok Habis!");
+        let item = cart.find(c => c.id === id);
+        if(item) item.qty++; else cart.push({...produkObj[id], id: id, qty: 1});
+        produkObj[id].stok--; renderCart(); renderProduk();
+    }
+
+    function hapusDariCart(id) {
+        let idx = cart.findIndex(c => c.id === id);
+        if (idx > -1) {
+            produkObj[id].stok++;
+            if (cart[idx].qty > 1) cart[idx].qty--; else cart.splice(idx, 1);
         }
+        renderCart(); renderProduk();
+    }
 
-        function handlePaymentMethod() {
-            const metode = document.getElementById("metodeBayar").value;
-            document.getElementById("panelCash").style.display = (metode === "Cash") ? "block" : "none";
-        }
+    function renderCart() {
+        const cartDiv = document.getElementById("cart");
+        let subtotal = 0; cartDiv.innerHTML = "";
+        cart.forEach(i => {
+            subtotal += i.harga * i.qty;
+            cartDiv.innerHTML += `
+                <div class="cart-item">
+                    <span>${i.nama} x${i.qty}</span>
+                    <button class="btn-remove" onclick="hapusDariCart('${i.id}')">✕</button>
+                </div>`;
+        });
+        document.getElementById("totalFinal").innerText = subtotal.toLocaleString();
+    }
 
-        function toggleUploadSection() {
-            const isChecked = document.getElementById("sudahBayar").checked;
-            document.getElementById("panelUpload").style.display = isChecked ? "block" : "none";
-        }
+    function handlePaymentMethod() {
+        document.getElementById("panelCash").style.display = (document.getElementById("metodeBayar").value === "Cash") ? "block" : "none";
+    }
 
-        function hitungKembalian() {
-            const totalStr = document.getElementById("totalFinal").innerText.replace(/,/g, '');
-            const total = parseInt(totalStr) || 0;
-            const bayar = document.getElementById("inputBayar").value || 0;
-            document.getElementById("kembalian").innerText = (bayar - total > 0) ? (bayar - total).toLocaleString() : "0";
-        }
-
-        function checkout() {
-            if(cart.length === 0) return alert("Keranjang Kosong!");
-            if(!document.getElementById("sudahBayar").checked) return alert("Konfirmasi 'Customer Sudah Bayar'!");
-            
-            const skrg = new Date();
-            const yyyy = skrg.getFullYear();
-            const mm = String(skrg.getMonth() + 1).padStart(2, '0');
-            const dd = String(skrg.getDate()).padStart(2, '0');
-            const formatTanggalMurni = `${yyyy}-${mm}-${dd}`; // Untuk Filter Report
-
-            const transID = "TRX-" + Date.now();
-            dataTerakhir = {
-                id: transID,
-                customer: document.getElementById("customerHP").value || "Umum",
-                item: [...cart],
-                total: parseInt(document.getElementById("totalFinal").innerText.replace(/,/g, '')),
-                metode: document.getElementById("metodeBayar").value,
-                waktu: skrg.toLocaleString('id-ID'),
-                tanggalMurni: formatTanggalMurni // Simpan kolom baru
-            };
-
-            const updates = {};
-            cart.forEach(i => updates['/produk/'+i.id+'/stok'] = i.stok);
-            updates['/transaksi/'+transID] = dataTerakhir;
-
-            db.ref().update(updates).then(() => {
-                printResi(dataTerakhir);
-                document.getElementById("btnWA").style.display = "block";
-                alert("Berhasil!");
-                cart = []; document.getElementById("customerHP").value = ""; 
-                document.getElementById("inputDiskon").value = ""; 
-                document.getElementById("inputBayar").value = "";
-                document.getElementById("sudahBayar").checked = false;
-                renderCart(); renderProduk(); toggleUploadSection();
-                handlePaymentMethod();
-            });
-        }
-
-        function printResi(d) {
-            const win = window.open("", "", "width=300,height=600");
-            win.document.write(`<html><body onload="window.print();window.close()"><center><strong>HEGARSARI</strong></center><hr>${d.id}<br>${d.waktu}<hr>Total: ${d.total.toLocaleString()}</body></html>`);
-            win.document.close();
-        }
-
-        function kirimWA() {
-            const text = `*HEGARSARI*%0ATotal: Rp ${dataTerakhir.total.toLocaleString()}`;
-            window.open(`https://wa.me/62${dataTerakhir.customer.slice(1)}?text=${text}`);
-        }
-    </script>
+    function checkout() {
+        if(cart.length === 0 || !document.getElementById("sudahBayar").checked) return alert("Cek keranjang/pembayaran!");
+        const skrg = new Date();
+        const transID = "TRX-" + Date.now();
+        const data = {
+            id: transID, total: parseInt(document.getElementById("totalFinal").innerText.replace(/,/g, '')),
+            waktu: skrg.toLocaleString('id-ID'),
+            tanggalMurni: skrg.toISOString().split('T')[0]
+        };
+        db.ref('transaksi/' + transID).set(data).then(() => {
+            alert("Berhasil!"); location.reload();
+        });
+    }
+</script>
 </body>
 </html>

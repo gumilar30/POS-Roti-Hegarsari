@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
+    <meta charset="UTF-8">
     <title>Dashboard - POS Roti Hegarsari</title>
     <link rel="stylesheet" href="style.css">
     <style>
@@ -8,7 +9,7 @@
         .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; }
         .stat-card h3 { margin: 0; color: #7f8c8d; font-size: 0.9rem; text-transform: uppercase; }
         .stat-value { font-size: 1.8rem; font-weight: bold; margin: 10px 0; color: #2c3e50; }
-        .btn-logout { background: #c0392b; color: white; margin-top: 20px; text-align: left !important; }
+        .btn-logout { background: #c0392b; color: white; margin-top: 20px; text-align: left !important; border: none; cursor: pointer; display: block; padding: 10px 15px; border-radius: 5px; text-decoration: none; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -58,17 +59,19 @@
     };
 
     firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
     const database = firebase.database();
 
-    // Gembok Keamanan Login
-    firebase.auth().onAuthStateChanged((user) => {
+    // GEMBOK KEAMANAN LOGIN
+    auth.onAuthStateChanged((user) => {
         if (!user) { window.location.href = "login.html"; }
     });
 
     function logout() {
-        firebase.auth().signOut().then(() => { window.location.href = "login.html"; });
+        auth.signOut().then(() => { window.location.href = "login.html"; });
     }
 
+    // Ambil Statistik
     database.ref('produk/').on('value', (snapshot) => {
         const data = snapshot.val();
         document.getElementById("dashProduk").innerText = data ? Object.keys(data).length : 0;
@@ -76,8 +79,7 @@
 
     database.ref('transaksi/').on('value', (snapshot) => {
         const data = snapshot.val();
-        let totalOmzet = 0;
-        let count = 0;
+        let totalOmzet = 0; let count = 0;
         if (data) {
             for (let key in data) {
                 totalOmzet += data[key].total;
@@ -87,4 +89,6 @@
         document.getElementById("dashOmzet").innerText = "Rp " + totalOmzet.toLocaleString();
         document.getElementById("dashTransaksi").innerText = count;
     });
-</
+</script>
+</body>
+</html>

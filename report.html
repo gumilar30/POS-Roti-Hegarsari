@@ -32,7 +32,7 @@
     </div>
 
     <div class="content">
-        <h1>Laporan Penjualan (Fixed Stability)</h1>
+        <h1>Laporan Penjualan (Fixed Range)</h1>
 
         <div class="filter-section">
             <div class="filter-group">
@@ -69,7 +69,7 @@
                 <thead>
                     <tr>
                         <th>No Resi</th>
-                        <th>Waktu Transaksi</th>
+                        <th>Tanggal</th>
                         <th>Metode</th>
                         <th>Total</th>
                     </tr>
@@ -97,8 +97,8 @@
         const db = firebase.database();
 
         function muatLaporan() {
-            const startInput = document.getElementById('startDate').value;
-            const endInput = document.getElementById('endDate').value;
+            const startInput = document.getElementById('startDate').value; // YYYY-MM-DD
+            const endInput = document.getElementById('endDate').value;     // YYYY-MM-DD
 
             db.ref('transaksi/').once('value', (snap) => {
                 const data = snap.val() || {};
@@ -109,27 +109,30 @@
 
                 Object.keys(data).reverse().forEach(id => {
                     const t = data[id];
-                    const tglData = t.tanggalMurni; // Kolom baru dari sales.html
+                    const tglMurni = t.tanggalMurni; // Diambil dari transaksi baru
 
                     let lolos = true;
                     
-                    // LOGIKA FILTER
-                    if (!tglData) {
-                        // Untuk data lama yang tidak punya tanggalMurni:
-                        // Hanya muncul jika user menekan "Tampilkan Semua" (input kosong)
-                        if (startInput || endInput) lolos = false;
-                    } else {
-                        // Untuk data baru (berdasarkan kolom tanggalMurni)
-                        if (startInput && tglData < startInput) lolos = false;
-                        if (endInput && tglData > endInput) lolos = false;
+                    // LOGIKA FILTER: Menggunakan kolom tanggalMurni
+                    if (startInput || endInput) {
+                        if (!tglMurni) {
+                            lolos = false; // Data lama disembunyikan jika filter aktif agar tidak error
+                        } else {
+                            if (startInput && tglMurni < startInput) lolos = false;
+                            if (endInput && tglMurni > endInput) lolos = false;
+                        }
                     }
 
                     if (lolos) {
                         omzet += t.total;
                         count++;
+                        
+                        // MERAPIKAN TAMPILAN: Hanya ambil tanggal sebelum tanda koma
+                        const tanggalSaja = t.waktu.split(',')[0]; 
+
                         html += `<tr>
                             <td>${t.id || id}</td>
-                            <td>${t.waktu}</td>
+                            <td>${tanggalSaja}</td>
                             <td>${t.metode || 'Cash'}</td>
                             <td><strong>Rp ${t.total.toLocaleString()}</strong></td>
                         </tr>`;
@@ -144,7 +147,7 @@
 
                 document.getElementById('totalOmzet').innerText = "Rp " + omzet.toLocaleString();
                 document.getElementById('jumlahTransaksi').innerText = count;
-                document.getElementById('tabelReport').innerHTML = html || "<tr><td colspan='4' align='center'>Data tidak ditemukan</td></tr>";
+                document.getElementById('tabelReport').innerHTML = html || "<tr><td colspan='4' align='center'>Data tidak ditemukan untuk tanggal ini</td></tr>";
                 
                 const sorted = Object.entries(tops).sort((a,b) => b[1]-a[1]).slice(0,5);
                 document.getElementById('listTopProducts').innerHTML = sorted.length ? 

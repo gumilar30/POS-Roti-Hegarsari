@@ -2,6 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - POS Roti Hegarsari</title>
     <link rel="stylesheet" href="style.css">
     <style>
@@ -53,7 +54,7 @@
         authDomain: "roti-hegarsari.firebaseapp.com",
         databaseURL: "https://roti-hegarsari-default-rtdb.asia-southeast1.firebasedatabase.app",
         projectId: "roti-hegarsari",
-        storageBucket: "roti-hegarsari.firebasestorage.app",
+        storageBucket: "roti-hebasari.firebasestorage.app",
         messagingSenderId: "770636746020",
         appId: "1:770636746020:web:e7c12761ad3e295271b7b1"
     };
@@ -62,13 +63,21 @@
     const auth = firebase.auth();
     const database = firebase.database();
 
-    // GEMBOK KEAMANAN LOGIN
+    // --- GEMBOK KEAMANAN ROLE (SUPER ADMIN ONLY) ---
     auth.onAuthStateChanged((user) => {
-        if (!user) { window.location.href = "login.html"; }
+        const role = localStorage.getItem("userRole");
+        if (!user || role !== "superadmin") {
+            // Jika tidak login atau bukan superadmin, arahkan ke sales
+            window.location.href = "sales.html"; 
+        }
     });
 
     function logout() {
-        auth.signOut().then(() => { window.location.href = "login.html"; });
+        auth.signOut().then(() => { 
+            localStorage.removeItem("userRole");
+            localStorage.removeItem("cabangSekarang");
+            window.location.href = "login.html"; 
+        });
     }
 
     // Ambil Statistik

@@ -23,7 +23,7 @@
         .input-group { margin-bottom: 10px; }
         .input-group label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 4px; }
         .input-group input, .input-group select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        #panelCash, #panelUpload { display: none; background: #f9f9f9; padding: 10px; border-radius: 4px; margin-top: 10px; }
+        #panelCash { display: block; background: #f9f9f9; padding: 10px; border-radius: 4px; margin-top: 10px; }
         .btn-wa { background: #25d366; color: white; margin-top: 10px; width: 100%; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; display: none; text-align: center; }
         
         .info-cabang { background: #2c3e50; color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px; margin-bottom: 10px; display: inline-block; }
@@ -37,7 +37,7 @@
         <a href="report.html" class="menu-admin">📊 Report</a>
         <a href="search.html" class="menu-admin">🔍 Search Resi</a>
         <a href="admin.html" class="menu-admin">⚙️ Admin</a>
-        <a href="#" onclick="logout()" style="color: #e74c3c;">🚪 Logout</a>
+        <a href="#" onclick="logout()" style="color: #e74c3c; margin-top: 20px;">🚪 Logout</a>
     </div>
 
     <div class="content">
@@ -92,7 +92,7 @@
                         </select>
                     </div>
 
-                    <div id="panelCash" style="display: block;">
+                    <div id="panelCash">
                         <label style="font-size: 12px; font-weight: bold;">Bayar (Tunai):</label>
                         <input type="number" id="inputBayar" placeholder="0" oninput="hitungKembalian()" style="width:100%; padding:8px; margin-bottom:5px;">
                         <p style="font-weight:bold; color: #e74c3c; margin: 0;">Kembalian: Rp <span id="kembalian">0</span></p>
@@ -100,7 +100,7 @@
                 </div>
 
                 <div style="margin-top: 15px;">
-                    <input type="checkbox" id="sudahBayar" onchange="toggleUploadSection()">
+                    <input type="checkbox" id="sudahBayar">
                     <label for="sudahBayar" style="font-weight: bold; cursor: pointer;"> Customer Sudah Bayar</label>
                 </div>
 
@@ -135,10 +135,8 @@
         firebase.auth().onAuthStateChanged((user) => {
             if (!user) {
                 window.location.href = "login.html";
-            } else {
-                if(user.email.includes("kasir")) {
-                    document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'none');
-                }
+            } else if(user.email.includes("kasir")) {
+                document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'none');
             }
         });
 
@@ -163,9 +161,7 @@
         function generateCategoryTabs() {
             const tabContainer = document.getElementById("tabKategori");
             const categories = new Set();
-            Object.values(produkObj).forEach(p => {
-                if(p.kategori) categories.add(p.kategori);
-            });
+            Object.values(produkObj).forEach(p => { if(p.kategori) categories.add(p.kategori); });
             tabContainer.innerHTML = `<button class="tab-btn ${filterKategori === 'Semua' ? 'active' : ''}" onclick="setFilter('Semua', this)">Semua</button>`;
             categories.forEach(cat => {
                 tabContainer.innerHTML += `<button class="tab-btn ${filterKategori === cat ? 'active' : ''}" onclick="setFilter('${cat}', this)">${cat}</button>`;
@@ -185,9 +181,7 @@
             container.innerHTML = "";
             Object.keys(produkObj).forEach(id => {
                 const p = produkObj[id];
-                const cocokKategori = (filterKategori === "Semua") || (p.kategori === filterKategori);
-                const cocokNama = p.nama.toLowerCase().includes(keyword);
-                if(cocokKategori && cocokNama) {
+                if(((filterKategori === "Semua") || (p.kategori === filterKategori)) && p.nama.toLowerCase().includes(keyword)) {
                     container.innerHTML += `
                         <div class="prod-card">
                             <img src="${p.foto || 'https://via.placeholder.com/100'}">
@@ -209,14 +203,10 @@
         }
 
         function hapusDariCart(id) {
-            let itemIndex = cart.findIndex(c => c.id === id);
-            if (itemIndex > -1) {
+            let idx = cart.findIndex(c => c.id === id);
+            if (idx > -1) {
                 produkObj[id].stok++;
-                if (cart[itemIndex].qty > 1) {
-                    cart[itemIndex].qty--;
-                } else {
-                    cart.splice(itemIndex, 1);
-                }
+                if (cart[idx].qty > 1) cart[idx].qty--; else cart.splice(idx, 1);
             }
             renderCart(); renderProduk();
         }
@@ -228,170 +218,101 @@
                 subtotal += i.harga * i.qty;
                 cartDiv.innerHTML += `
                     <div class="cart-item">
-                        <div style="flex:1;">
-                            <strong>${i.nama}</strong><br>
-                            <small>x${i.qty} - Rp ${(i.harga*i.qty).toLocaleString()}</small>
-                        </div>
+                        <div style="flex:1;"><strong>${i.nama}</strong><br><small>x${i.qty} - Rp ${(i.harga*i.qty).toLocaleString()}</small></div>
                         <button class="btn-remove" onclick="hapusDariCart('${i.id}')">✕</button>
                     </div>`;
             });
-
-            const persenDiskon = parseFloat(document.getElementById("inputDiskon").value) || 0;
-            const nilaiPotongan = (persenDiskon / 100) * subtotal;
-            const totalAkhir = subtotal - nilaiPotongan;
-
+            const pDiskon = parseFloat(document.getElementById("inputDiskon").value) || 0;
+            const nPotongan = (pDiskon / 100) * subtotal;
             document.getElementById("valSubtotal").innerText = subtotal.toLocaleString();
-            document.getElementById("valPotongan").innerText = nilaiPotongan.toLocaleString();
-            document.getElementById("totalFinal").innerText = totalAkhir.toLocaleString();
+            document.getElementById("valPotongan").innerText = nPotongan.toLocaleString();
+            document.getElementById("totalFinal").innerText = (subtotal - nPotongan).toLocaleString();
             hitungKembalian();
         }
 
         function handlePaymentMethod() {
-            const metode = document.getElementById("metodeBayar").value;
-            document.getElementById("panelCash").style.display = (metode === "Cash") ? "block" : "none";
+            document.getElementById("panelCash").style.display = (document.getElementById("metodeBayar").value === "Cash") ? "block" : "none";
         }
-
-        function toggleUploadSection() {}
 
         function hitungKembalian() {
-            const totalStr = document.getElementById("totalFinal").innerText.replace(/,/g, '');
-            const total = parseInt(totalStr) || 0;
+            const total = parseInt(document.getElementById("totalFinal").innerText.replace(/,/g, '')) || 0;
             const bayar = parseInt(document.getElementById("inputBayar").value) || 0;
-            const sisa = bayar - total;
-            document.getElementById("kembalian").innerText = (sisa > 0) ? sisa.toLocaleString() : "0";
+            document.getElementById("kembalian").innerText = (bayar - total > 0) ? (bayar - total).toLocaleString() : "0";
         }
 
-        // --- FUNGSI CHECKOUT DENGAN ANTRIAN OTOMATIS ---
         async function checkout() {
             if(cart.length === 0) return alert("Keranjang Kosong!");
             if(!document.getElementById("sudahBayar").checked) return alert("Konfirmasi 'Customer Sudah Bayar'!");
             
             const skrg = new Date();
-            const yyyy = skrg.getFullYear();
-            const mm = String(skrg.getMonth() + 1).padStart(2, '0');
-            const dd = String(skrg.getDate()).padStart(2, '0');
-            const formatTanggalMurni = `${yyyy}-${mm}-${dd}`;
+            const formatTgl = skrg.toISOString().split('T')[0];
 
-            // Hitung Nomor Antrian Otomatis
             let noAntrian = "01";
-            const snap = await db.ref('transaksi').orderByChild('tanggalMurni').equalTo(formatTanggalMurni).once('value');
-            if(snap.exists()) {
-                const jumlahHariIni = Object.keys(snap.val()).length;
-                noAntrian = String(jumlahHariIni + 1).padStart(2, '0');
-            }
+            const snap = await db.ref('transaksi').orderByChild('tanggalMurni').equalTo(formatTgl).once('value');
+            if(snap.exists()) noAntrian = String(Object.keys(snap.val()).length + 1).padStart(2, '0');
 
-            const subtotal = cart.reduce((a, b) => a + (b.harga * b.qty), 0);
-            const persenDiskon = parseFloat(document.getElementById("inputDiskon").value) || 0;
-            const nilaiPotongan = (persenDiskon / 100) * subtotal;
-            const totalAkhir = subtotal - nilaiPotongan;
+            const sub = cart.reduce((a, b) => a + (b.harga * b.qty), 0);
+            const pDsk = parseFloat(document.getElementById("inputDiskon").value) || 0;
+            const nPot = (pDsk / 100) * sub;
+            const trxID = "TRX-" + Date.now();
 
-            const transID = "TRX-" + Date.now();
             dataTerakhir = {
-                id: transID,
-                antrian: noAntrian,
-                customer: document.getElementById("customerHP").value || "-",
-                item: [...cart],
-                subtotal: subtotal,
-                potongan: nilaiPotongan,
-                total: totalAkhir,
-                metode: document.getElementById("metodeBayar").value,
-                waktu: skrg.toLocaleString('id-ID'),
-                tanggalMurni: formatTanggalMurni,
-                lokasi: cabangAktif || "-"
+                id: trxID, antrian: noAntrian, customer: document.getElementById("customerHP").value || "-",
+                item: [...cart], subtotal: sub, potongan: nPot, total: sub - nPot,
+                metode: document.getElementById("metodeBayar").value, waktu: skrg.toLocaleString('id-ID'),
+                tanggalMurni: formatTgl, lokasi: cabangAktif || "-"
             };
 
             const updates = {};
             cart.forEach(i => updates['/produk/'+i.id+'/stok'] = i.stok);
-            updates['/transaksi/'+transID] = dataTerakhir;
+            updates['/transaksi/'+trxID] = dataTerakhir;
 
             db.ref().update(updates).then(() => {
-                printResi(dataTerakhir); // Cetak Resi Detail
+                printResi(dataTerakhir);
                 document.getElementById("btnWA").style.display = "block";
                 alert("Berhasil! Antrian: " + noAntrian);
-                cart = []; 
+                cart = []; renderCart(); renderProduk();
                 document.getElementById("customerHP").value = ""; 
                 document.getElementById("inputDiskon").value = ""; 
                 document.getElementById("inputBayar").value = "";
                 document.getElementById("sudahBayar").checked = false;
-                renderCart(); renderProduk();
             });
         }
 
-        // --- FUNGSI CETAK RESI DETAIL ---
         function printResi(d) {
-    const win = window.open("", "", "width=300,height=600");
-    
-    let itemHtml = "";
-    d.item.forEach(i => {
-        itemHtml += `
-        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px;">
-            <span>${i.nama} x${i.qty}</span>
-            <span>${(i.harga * i.qty).toLocaleString()}</span>
-        </div>`;
-    });
+            const win = window.open("", "", "width=300,height=600");
+            let items = "";
+            d.item.forEach(i => {
+                items += `<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;">
+                    <span>${i.nama} x${i.qty}</span><span>${(i.harga*i.qty).toLocaleString()}</span></div>`;
+            });
 
-    win.document.write(`
-        <html>
-        <head>
-            <style>
-                @page { 
-                    size: 5.6cm 16cm; 
-                    margin: 0; 
-                }
-                body { 
-                    font-family: 'Courier New', Courier, monospace; 
-                    width: 5.6cm; 
-                    height: 16cm;
-                    padding: 10px; 
-                    margin: 0; 
-                    box-sizing: border-box;
-                }
-                .text-center { text-align: center; }
+            win.document.write(`<html><head><style>
+                @page { size: 5.6cm 16cm; margin: 0; }
+                body { font-family: 'Courier New', monospace; width: 5.6cm; padding: 10px; margin: 0; box-sizing: border-box; }
                 .line { border-bottom: 1px dashed black; margin: 8px 0; }
                 .bold { font-weight: bold; }
                 .small { font-size: 11px; }
-                .normal-bold { font-size: 11px; font-weight: bold; }
-            </style>
-        </head>
-        <body onload="window.print();window.close()">
-            <h3 class="text-center" style="margin:0;">ROTI HEGARSARI</h3>
-            <p class="text-center small" style="margin:4px 0;">Cabang: ${d.lokasi}</p>
-            <div class="line"></div>
-            
-            <div class="normal-bold">Nomer Antrian : ${d.antrian}</div>
-            
-            <div class="small">
-                ID: ${d.id}<br>
-                Waktu: ${d.waktu}<br>
-                Telp: ${d.customer}
-            </div>
-            
-            <div class="line"></div>
-            
-            ${itemHtml}
-            
-            <div class="line"></div>
-            
-            <div style="display: flex; justify-content: space-between;" class="bold">
-                <span>TOTAL:</span>
-                <span>Rp ${d.total.toLocaleString()}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-size: 11px;">
-                <span>Diskon:</span>
-                <span>Rp ${d.potongan.toLocaleString()}</span>
-            </div>
-            
-            <div class="line"></div>
-            <p class="text-center small">Terima kasih atas kunjungannya!</p>
-        </body>
-        </html>
-    `);
-    win.document.close();
-}
+            </style></head>
+            <body onload="window.print();window.close()">
+                <div style="text-align:center;"><h3 style="margin:0;">ROTI HEGARSARI</h3><p class="small" style="margin:4px 0;">Cabang: ${d.lokasi}</p></div>
+                <div class="line"></div>
+                <div class="small bold">Nomer Antrian : ${d.antrian}</div>
+                <div class="small">ID: ${d.id}<br>Waktu: ${d.waktu}<br>Telp: ${d.customer}</div>
+                <div class="line"></div>
+                ${items}
+                <div class="line"></div>
+                <div style="display:flex;justify-content:space-between;" class="small bold"><span>TOTAL:</span><span>Rp ${d.total.toLocaleString()}</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:10px;"><span>Diskon:</span><span>Rp ${d.potongan.toLocaleString()}</span></div>
+                <div class="line"></div>
+                <p style="text-align:center;font-size:10px;">Terima kasih atas kunjungannya!</p>
+            </body></html>`);
+            win.document.close();
+        }
 
         function kirimWA() {
-            const text = `*ROTI HEGARSARI - ${dataTerakhir.lokasi}*%0AAntrian: ${dataTerakhir.antrian}%0ATotal: Rp ${dataTerakhir.total.toLocaleString()}%0ATerima kasih!`;
-            window.open(`https://wa.me/62${dataTerakhir.customer.slice(1)}?text=${text}`);
+            const txt = `*ROTI HEGARSARI - ${dataTerakhir.lokasi}*%0AAntrian: ${dataTerakhir.antrian}%0ATotal: Rp ${dataTerakhir.total.toLocaleString()}`;
+            window.open(`https://wa.me/62${dataTerakhir.customer.slice(1)}?text=${txt}`);
         }
     </script>
 </body>

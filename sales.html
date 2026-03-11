@@ -319,63 +319,75 @@
 
         // --- FUNGSI CETAK RESI DETAIL ---
         function printResi(d) {
-            const win = window.open("", "", "width=300,height=600");
-            
-            let itemHtml = "";
-            d.item.forEach(i => {
-                itemHtml += `
-                <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px;">
-                    <span>${i.nama} x${i.qty}</span>
-                    <span>${(i.harga * i.qty).toLocaleString()}</span>
-                </div>`;
-            });
+    const win = window.open("", "", "width=300,height=600");
+    
+    let itemHtml = "";
+    d.item.forEach(i => {
+        itemHtml += `
+        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px;">
+            <span>${i.nama} x${i.qty}</span>
+            <span>${(i.harga * i.qty).toLocaleString()}</span>
+        </div>`;
+    });
 
-            win.document.write(`
-                <html>
-                <head>
-                    <style>
-                        body { font-family: 'Courier New', Courier, monospace; width: 260px; padding: 10px; margin: 0; }
-                        .text-center { text-align: center; }
-                        .line { border-bottom: 1px dashed black; margin: 8px 0; }
-                        .bold { font-weight: bold; }
-                        .small { font-size: 11px; }
-                    </style>
-                </head>
-                <body onload="window.print();window.close()">
-                    <h3 class="text-center" style="margin:0;">ROTI HEGARSARI</h3>
-                    <p class="text-center small" style="margin:4px 0;">Cabang: ${d.lokasi}</p>
-                    <div class="line"></div>
-                    
-                    <div class="small">
-                        ID: ${d.id}<br>
-                        Waktu: ${d.waktu}<br>
-                        Telp: ${d.customer}
-                    </div>
-                    
-                    <h1 class="text-center" style="margin: 10px 0;">NO: ${d.antrian}</h1>
-                    
-                    <div class="line"></div>
-                    
-                    ${itemHtml}
-                    
-                    <div class="line"></div>
-                    
-                    <div style="display: flex; justify-content: space-between;" class="bold">
-                        <span>TOTAL:</span>
-                        <span>Rp ${d.total.toLocaleString()}</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 11px;">
-                        <span>Diskon:</span>
-                        <span>Rp ${d.potongan.toLocaleString()}</span>
-                    </div>
-                    
-                    <div class="line"></div>
-                    <p class="text-center small">Terima kasih atas kunjungannya!</p>
-                </body>
-                </html>
-            `);
-            win.document.close();
-        }
+    win.document.write(`
+        <html>
+        <head>
+            <style>
+                @page { 
+                    size: 5.6cm 16cm; 
+                    margin: 0; 
+                }
+                body { 
+                    font-family: 'Courier New', Courier, monospace; 
+                    width: 5.6cm; 
+                    height: 16cm;
+                    padding: 10px; 
+                    margin: 0; 
+                    box-sizing: border-box;
+                }
+                .text-center { text-align: center; }
+                .line { border-bottom: 1px dashed black; margin: 8px 0; }
+                .bold { font-weight: bold; }
+                .small { font-size: 11px; }
+                .normal-bold { font-size: 11px; font-weight: bold; }
+            </style>
+        </head>
+        <body onload="window.print();window.close()">
+            <h3 class="text-center" style="margin:0;">ROTI HEGARSARI</h3>
+            <p class="text-center small" style="margin:4px 0;">Cabang: ${d.lokasi}</p>
+            <div class="line"></div>
+            
+            <div class="normal-bold">Nomer Antrian : ${d.antrian}</div>
+            
+            <div class="small">
+                ID: ${d.id}<br>
+                Waktu: ${d.waktu}<br>
+                Telp: ${d.customer}
+            </div>
+            
+            <div class="line"></div>
+            
+            ${itemHtml}
+            
+            <div class="line"></div>
+            
+            <div style="display: flex; justify-content: space-between;" class="bold">
+                <span>TOTAL:</span>
+                <span>Rp ${d.total.toLocaleString()}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 11px;">
+                <span>Diskon:</span>
+                <span>Rp ${d.potongan.toLocaleString()}</span>
+            </div>
+            
+            <div class="line"></div>
+            <p class="text-center small">Terima kasih atas kunjungannya!</p>
+        </body>
+        </html>
+    `);
+    win.document.close();
+}
 
         function kirimWA() {
             const text = `*ROTI HEGARSARI - ${dataTerakhir.lokasi}*%0AAntrian: ${dataTerakhir.antrian}%0ATotal: Rp ${dataTerakhir.total.toLocaleString()}%0ATerima kasih!`;

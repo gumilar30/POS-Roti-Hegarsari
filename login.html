@@ -6,27 +6,24 @@
     <title>Login - Roti Hegarsari</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        .login-box { max-width: 400px; margin: 100px auto; padding: 30px; background: white; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; }
+        .login-box { max-width: 400px; margin: 80px auto; padding: 30px; background: white; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; }
         input, select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 14px; }
         button { width: 100%; padding: 12px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 10px; }
-        button:hover { background: #2980b9; }
         label { display: block; text-align: left; font-size: 12px; font-weight: bold; color: #555; margin-bottom: -5px; }
     </style>
 </head>
-<body style="background: #f4f7f6; display: block;">
+<body style="background: #f4f7f6;">
     <div class="login-box">
         <h2>🍞 Hegarsari Admin</h2>
-        <p>Silakan login untuk akses kasir</p>
+        <p>Login Super Admin / Kasir</p>
         
-        <input type="email" id="email" placeholder="Email Admin">
+        <input type="email" id="email" placeholder="Email Terdaftar">
         <input type="password" id="password" placeholder="Password">
         
-        <label for="lokasiToko">Lokasi Cabang:</label>
-        <select id="lokasiToko">
-            <option value="">Memuat lokasi...</option>
-        </select>
+        <label>Pilih Lokasi Tugas:</label>
+        <select id="lokasiToko"><option value="">Memuat lokasi...</option></select>
         
-        <button onclick="prosesLogin()">Masuk Ke Sistem</button>
+        <button onclick="prosesLogin()" id="btnLogin">Masuk Ke Sistem</button>
         <p id="pesanError" style="color: red; font-size: 13px; margin-top: 10px;"></p>
     </div>
 
@@ -45,17 +42,10 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // Ambil daftar cabang dari Firebase secara otomatis
+        // Ambil daftar Cabang
         db.ref('cabang/').once('value', (snap) => {
-            const list = snap.val();
-            let html = '<option value="">-- Pilih Lokasi Cabang --</option>';
-            if (list) {
-                for(let id in list) {
-                    html += `<option value="${list[id]}">${list[id]}</option>`;
-                }
-            } else {
-                html = '<option value="">Belum ada cabang terdaftar</option>';
-            }
+            let html = '<option value="">-- Pilih Lokasi --</option>';
+            snap.forEach(child => { html += `<option value="${child.val()}">${child.val()}</option>`; });
             document.getElementById('lokasiToko').innerHTML = html;
         });
 
@@ -63,22 +53,36 @@
             const email = document.getElementById('email').value;
             const pass = document.getElementById('password').value;
             const lokasi = document.getElementById('lokasiToko').value;
-            const pesanError = document.getElementById('pesanError');
+            const btn = document.getElementById('btnLogin');
 
-            // Validasi pilihan lokasi
-            if(!lokasi) {
-                pesanError.innerText = "Pilih lokasi cabang dulu!";
-                return;
-            }
+            if(!lokasi) return alert("Pilih lokasi dulu!");
+            
+            btn.innerText = "Mengecek Hak Akses...";
+            btn.disabled = true;
 
             firebase.auth().signInWithEmailAndPassword(email, pass)
-                .then(() => {
-                    // Simpan lokasi terpilih di browser agar halaman sales tahu ini cabang mana
-                    localStorage.setItem("cabangSekarang", lokasi);
-                    window.location.href = "sales.html";
+                .then((userCredential) => {
+                    const cleanEmail = userCredential.user.email.replace(/\./g, ',');
+                    
+                    // CEK PERAN DI DATABASE
+                    db.ref('users_role/' + cleanEmail).once('value', (snap) => {
+                        const role = snap.val() || "user"; 
+                        
+                        localStorage.setItem("userRole", role);
+                        localStorage.setItem("cabangSekarang", lokasi);
+                        
+                        // Super Admin ke Dashboard, Kasir langsung ke Sales
+                        if(role === "superadmin") {
+                            window.location.href = "index.html";
+                        } else {
+                            window.location.href = "sales.html";
+                        }
+                    });
                 })
-                .catch((error) => { 
-                    pesanError.innerText = "Email atau Password Salah!"; 
+                .catch((error) => {
+                    btn.innerText = "Masuk Ke Sistem";
+                    btn.disabled = false;
+                    document.getElementById('pesanError').innerText = "Email/Password Salah atau Tidak Terdaftar!";
                 });
         }
     </script>

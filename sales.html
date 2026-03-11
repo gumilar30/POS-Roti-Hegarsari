@@ -14,18 +14,14 @@
         .prod-card img { width: 100%; height: 100px; object-fit: cover; border-radius: 5px; margin-bottom: 8px; }
         .prod-card h4 { margin: 5px 0; font-size: 14px; }
         .btn-add { width: 100%; background: #3498db; color: white; border: none; padding: 8px; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        
         .cart-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px dashed #eee; }
         .btn-remove { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-left: 10px; }
-        .btn-remove:hover { background: #c0392b; }
-
         .total-highlight { border-top: 3px solid #2c3e50; border-bottom: 3px solid #2c3e50; padding: 15px 0; margin: 15px 0; background: #fcfcfc; text-align: center; }
         .input-group { margin-bottom: 10px; }
         .input-group label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 4px; }
         .input-group input, .input-group select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
         #panelCash { display: block; background: #f9f9f9; padding: 10px; border-radius: 4px; margin-top: 10px; }
         .btn-wa { background: #25d366; color: white; margin-top: 10px; width: 100%; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; display: none; text-align: center; }
-        
         .info-cabang { background: #2c3e50; color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px; margin-bottom: 10px; display: inline-block; }
     </style>
 </head>
@@ -35,8 +31,7 @@
         <a href="index.html" class="menu-admin">🏠 Dashboard</a>
         <a href="sales.html" style="background: #34495e;">🛒 Sales</a>
         <a href="report.html" class="menu-admin">📊 Report</a>
-        <a href="search.html" class="menu-admin">🔍 Search Resi</a>
-        <a href="admin.html" class="menu-admin">⚙️ Admin</a>
+        <a href="search.html">🔍 Search Resi</a> <a href="admin.html" class="menu-admin">⚙️ Admin</a>
         <a href="#" onclick="logout()" style="color: #e74c3c; margin-top: 20px;">🚪 Logout</a>
     </div>
 
@@ -49,11 +44,9 @@
         <div style="display: flex; gap: 20px; flex-wrap: wrap;">
             <div class="card" style="flex: 1; min-width: 350px;">
                 <input type="text" id="searchMenu" placeholder="🔍 Cari nama roti..." oninput="renderProduk()" style="width:100%; padding:10px; margin-bottom:15px; border-radius:5px; border:1px solid #ddd;">
-                
                 <div id="tabKategori" class="tab-menu">
                     <button class="tab-btn active" onclick="setFilter('Semua', this)">Semua</button>
                 </div>
-
                 <div id="daftarProduk">Memuat produk...</div>
             </div>
 
@@ -61,7 +54,6 @@
                 <h3>Keranjang 🛒</h3>
                 <div id="cart" style="font-size: 14px; margin-bottom: 10px; min-height: 50px;"></div>
                 <hr>
-                
                 <div class="payment-section">
                     <div class="input-group">
                         <label>No. HP Customer (WA):</label>
@@ -71,18 +63,15 @@
                         <label>Diskon (%):</label>
                         <input type="number" id="inputDiskon" placeholder="0" oninput="renderCart()">
                     </div>
-
                     <div style="font-size: 14px; display: flex; justify-content: space-between; margin-bottom: 5px;">
                         <span>Subtotal:</span> <span>Rp <span id="valSubtotal">0</span></span>
                     </div>
                     <div style="font-size: 14px; color: #e67e22; display: flex; justify-content: space-between; margin-bottom: 5px;">
                         <span>Potongan Diskon:</span> <span>-Rp <span id="valPotongan">0</span></span>
                     </div>
-                    
                     <div class="total-highlight">
                         <h2 style="margin: 0; color: #2c3e50;">TOTAL: Rp <span id="totalFinal">0</span></h2>
                     </div>
-
                     <div class="input-group">
                         <label>Metode Pembayaran:</label>
                         <select id="metodeBayar" onchange="handlePaymentMethod()">
@@ -91,21 +80,17 @@
                             <option value="QRIS">QRIS</option>
                         </select>
                     </div>
-
                     <div id="panelCash">
                         <label style="font-size: 12px; font-weight: bold;">Bayar (Tunai):</label>
                         <input type="number" id="inputBayar" placeholder="0" oninput="hitungKembalian()" style="width:100%; padding:8px; margin-bottom:5px;">
                         <p style="font-weight:bold; color: #e74c3c; margin: 0;">Kembalian: Rp <span id="kembalian">0</span></p>
                     </div>
                 </div>
-
                 <div style="margin-top: 15px;">
                     <input type="checkbox" id="sudahBayar">
                     <label for="sudahBayar" style="font-weight: bold; cursor: pointer;"> Customer Sudah Bayar</label>
                 </div>
-
                 <button onclick="checkout()" style="width:100%; background:#27ae60; color:white; padding:15px; border:none; border-radius:5px; font-weight:bold; font-size:16px; cursor:pointer; margin-top: 10px;">Selesaikan & Print</button>
-                
                 <a id="btnWA" class="btn-wa" onclick="kirimWA()">📱 Kirim Resi ke WhatsApp</a>
             </div>
         </div>
@@ -127,22 +112,24 @@
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
+        const auth = firebase.auth();
 
         const cabangAktif = localStorage.getItem("cabangSekarang");
         if(!cabangAktif) window.location.href = "login.html";
         document.getElementById('displayCabang').innerText = "Cabang: " + cabangAktif;
 
-        firebase.auth().onAuthStateChanged((user) => {
+        auth.onAuthStateChanged((user) => {
+            const role = localStorage.getItem("userRole");
             if (!user) {
                 window.location.href = "login.html";
-            } else if(user.email.includes("kasir")) {
+            } else if(role === "user") {
                 document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'none');
             }
         });
 
         function logout() {
-            firebase.auth().signOut().then(() => {
-                localStorage.removeItem("cabangSekarang");
+            auth.signOut().then(() => {
+                localStorage.clear();
                 window.location.href = "login.html";
             });
         }
@@ -272,10 +259,8 @@
                 document.getElementById("btnWA").style.display = "block";
                 alert("Berhasil! Antrian: " + noAntrian);
                 cart = []; renderCart(); renderProduk();
-                document.getElementById("customerHP").value = ""; 
-                document.getElementById("inputDiskon").value = ""; 
-                document.getElementById("inputBayar").value = "";
-                document.getElementById("sudahBayar").checked = false;
+                document.getElementById("customerHP").value = ""; document.getElementById("inputDiskon").value = ""; 
+                document.getElementById("inputBayar").value = ""; document.getElementById("sudahBayar").checked = false;
             });
         }
 

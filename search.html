@@ -6,56 +6,39 @@
     <title>Search Resi - Roti Hegarsari</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        .search-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .input-group { display: flex; gap: 10px; margin-top: 10px; }
-        input { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 5px; }
-        button { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .btn-search { background: #3498db; color: white; }
-        .btn-print { background: #2c3e50; color: white; margin-top: 10px; width: 100%; }
-        .btn-wa { background: #25d366; color: white; margin-top: 5px; width: 100%; }
-        .result-card { background: #fdfdfd; padding: 20px; border-left: 5px solid #3498db; margin-top: 20px; display: none; }
-        .item-row { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 5px; }
+        .search-box { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; gap: 10px; }
+        .search-box input { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 5px; }
+        .btn-search { background: #3498db; color: white; border: none; padding: 12px 25px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .resi-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; border-left: 5px solid #3498db; }
+        .btn-print { background: #27ae60; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 13px; }
     </style>
 </head>
 <body>
     <div class="sidebar">
         <h2>🍞 Hegarsari</h2>
-        <a href="index.html">🏠 Dashboard</a>
+        <a href="index.html" class="menu-admin">🏠 Dashboard</a>
         <a href="sales.html">🛒 Sales</a>
-        <a href="report.html">📊 Report</a>
+        <a href="report.html" class="menu-admin">📊 Report</a>
         <a href="search.html" style="background: #34495e;">🔍 Search Resi</a>
-        <a href="admin.html">⚙️ Admin</a>
+        <a href="admin.html" class="menu-admin">⚙️ Admin</a>
+        <a href="#" onclick="logout()" style="color: #e74c3c; margin-top: 20px;">🚪 Logout</a>
     </div>
 
     <div class="content">
-        <h1>Pencarian Resi (Cloud Search)</h1>
-        
-        <div class="search-container">
-            <label>Masukkan Order ID / Nomor HP:</label>
-            <div class="input-group">
-                <input type="text" id="searchInput" placeholder="Contoh: TRX-1741156...">
-                <button class="btn-search" onclick="cariTransaksi()">🔍 Cari</button>
+        <h1>Cari & Print Ulang Resi</h1>
+        <div class="search-box">
+            <input type="text" id="inputSearch" placeholder="Masukkan Nomor Resi atau No HP (Contoh: TRX-123 atau 0812...)">
+            <button class="btn-search" onclick="cariResi()">Cari Data</button>
+        </div>
+
+        <div id="hasilPencarian">
             </div>
-        </div>
-
-        <div id="hasilCari" class="result-card">
-            <h3>Detail Transaksi</h3>
-            <div id="detailKonten"></div>
-            <hr>
-            <button class="btn-print" onclick="cetakUlang()">🖨️ Cetak Ulang (5.6cm)</button>
-            <button class="btn-wa" onclick="waUlang()">📱 Kirim Ulang ke WA</button>
-        </div>
-
-        <div id="pesanError" style="color: red; display: none; margin-top: 10px;">
-            ❌ Transaksi tidak ditemukan di Cloud. Pastikan ID benar.
-        </div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-
     <script>
-        // Gunakan Config yang sama dengan Sales.html
         const firebaseConfig = {
             apiKey: "AIzaSyD0hNlCjszxB_3dPEJngPAFknfxiImK6Nc",
             authDomain: "roti-hegarsari.firebaseapp.com",
@@ -65,77 +48,90 @@
             messagingSenderId: "770636746020",
             appId: "1:770636746020:web:e7c12761ad3e295271b7b1"
         };
-
         firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
-        let currentData = null;
+        const db = firebase.database();
+        const auth = firebase.auth();
 
-        function cariTransaksi() {
-            const input = document.getElementById("searchInput").value.trim();
-            const panelHasil = document.getElementById("hasilCari");
-            const panelError = document.getElementById("pesanError");
-            
-            if (!input) return;
+        // GEMBOK AKSES (KASIR & ADMIN BOLEH MASUK)
+        auth.onAuthStateChanged((user) => {
+            const role = localStorage.getItem("userRole");
+            if (!user) {
+                window.location.href = "login.html";
+            } else if(role === "user") {
+                document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'none');
+            }
+        });
 
-            // PERBAIKAN: Pastikan alamat database mengarah ke folder 'transaksi'
-            database.ref('transaksi').child(input).once('value', (snapshot) => {
-                const data = snapshot.val();
-                
-                if (data) {
-                    currentData = data;
-                    panelHasil.style.display = "block";
-                    panelError.style.display = "none";
-                    
-                    // Render detail transaksi ke layar
-                    let itemHtml = data.item.map(i => `
-                        <div class="item-row">
-                            <span>${i.nama} x${i.qty}</span>
-                            <span>Rp ${(i.harga * i.qty).toLocaleString()}</span>
-                        </div>
-                    `).join("");
+        function logout() {
+            auth.signOut().then(() => { localStorage.clear(); window.location.href = "login.html"; });
+        }
 
-                    document.getElementById("detailKonten").innerHTML = `
-                        <p><strong>ID:</strong> ${data.id}</p>
-                        <p><strong>Waktu:</strong> ${data.waktu}</p>
-                        <p><strong>Customer:</strong> ${data.customer}</p>
-                        <hr>
-                        ${itemHtml}
-                        <hr>
-                        <div class="item-row"><span>Subtotal:</span><span>Rp ${data.subtotal.toLocaleString()}</span></div>
-                        <div class="item-row" style="color:red;"><span>Potongan:</span><span>-Rp ${data.potongan.toLocaleString()}</span></div>
-                        <div class="item-row" style="font-weight:bold; font-size:18px;"><span>TOTAL:</span><span>Rp ${data.total.toLocaleString()}</span></div>
-                        <p><strong>Metode:</strong> ${data.metode}</p>
-                    `;
-                } else {
-                    // Jika data tidak ditemukan
-                    panelHasil.style.display = "none";
-                    panelError.style.display = "block";
-                }
+        function cariResi() {
+            const keyword = document.getElementById('inputSearch').value.trim().toLowerCase();
+            const container = document.getElementById('hasilPencarian');
+            if(!keyword) return alert("Masukkan kata kunci!");
+
+            container.innerHTML = "Mencari...";
+
+            db.ref('transaksi/').once('value', (snap) => {
+                const data = snap.val() || {};
+                let html = "";
+                let found = false;
+
+                Object.keys(data).reverse().forEach(key => {
+                    const t = data[key];
+                    const matchID = (t.id || "").toLowerCase().includes(keyword);
+                    const matchHP = (t.customer || "").toLowerCase().includes(keyword);
+
+                    if(matchID || matchHP) {
+                        found = true;
+                        html += `
+                        <div class="resi-card">
+                            <div style="display:flex; justify-content:space-between; align-items:start;">
+                                <div>
+                                    <strong>${t.id || key}</strong> (${t.waktu})<br>
+                                    <small>Antrian: ${t.antrian || '-'} | Lokasi: ${t.lokasi || '-'}</small><br>
+                                    <span>Total: <strong>Rp ${t.total.toLocaleString()}</strong></span>
+                                </div>
+                                <button class="btn-print" onclick='printUlang(${JSON.stringify(t)})'>🖨️ Print Ulang</button>
+                            </div>
+                        </div>`;
+                    }
+                });
+
+                container.innerHTML = found ? html : "Data tidak ditemukan.";
             });
         }
 
-        function cetakUlang() {
-            if (!currentData) return;
-            const d = currentData;
+        function printUlang(d) {
             const win = window.open("", "", "width=300,height=600");
-            let items = d.item.map(i => `<div style="display:flex; justify-content:space-between; font-size:12px;"><span>${i.nama} x${i.qty}</span><span>${(i.harga*i.qty).toLocaleString()}</span></div>`).join("");
-            
-            win.document.write(`<html><body onload="window.print(); window.close();" style="width:56mm; font-family:monospace; padding:4mm;">
-                <center><strong>ROTI HEGARSARI</strong><br><small>DUPLIKAT RESI</small></center><hr>
-                <div style="font-size:10px;">ID: ${d.id}<br>HP: ${d.customer}<br>${d.waktu}</div><hr>
-                ${items}<hr>
-                <div style="display:flex; justify-content:space-between;"><span>Subtotal:</span><span>${d.subtotal.toLocaleString()}</span></div>
-                <div style="display:flex; justify-content:space-between; color:red;"><span>Diskon:</span><span>-${d.potongan.toLocaleString()}</span></div>
-                <div style="display:flex; justify-content:space-between; font-weight:bold;"><span>TOTAL:</span><span>${d.total.toLocaleString()}</span></div><hr>
-                <center style="font-size:10px;">Terima Kasih!</center></body></html>`);
-            win.document.close();
-        }
+            let items = "";
+            d.item.forEach(i => {
+                items += `<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;">
+                    <span>${i.nama} x${i.qty}</span><span>${(i.harga*i.qty).toLocaleString()}</span></div>`;
+            });
 
-        function waUlang() {
-            if (!currentData || currentData.customer === "Umum") return alert("No HP tidak tersedia");
-            const hp = currentData.customer;
-            let text = `*ROTI HEGARSARI (REPRINT)*%0AID: ${currentData.id}%0A%0ATotal: *Rp ${currentData.total.toLocaleString()}*`;
-            window.open(`https://wa.me/${hp.startsWith('0') ? '62' + hp.slice(1) : hp}?text=${text}`);
+            win.document.write(`<html><head><style>
+                @page { size: 5.6cm 16cm; margin: 0; }
+                body { font-family: 'Courier New', monospace; width: 5.6cm; padding: 10px; margin: 0; box-sizing: border-box; }
+                .line { border-bottom: 1px dashed black; margin: 8px 0; }
+                .bold { font-weight: bold; }
+                .small { font-size: 11px; }
+            </style></head>
+            <body onload="window.print();window.close()">
+                <div style="text-align:center;"><h3 style="margin:0;">ROTI HEGARSARI</h3><p class="small" style="margin:4px 0;">(COPY RESI) - ${d.lokasi}</p></div>
+                <div class="line"></div>
+                <div class="small bold">Nomer Antrian : ${d.antrian}</div>
+                <div class="small">ID: ${d.id}<br>Waktu: ${d.waktu}<br>Telp: ${d.customer}</div>
+                <div class="line"></div>
+                ${items}
+                <div class="line"></div>
+                <div style="display:flex;justify-content:space-between;" class="small bold"><span>TOTAL:</span><span>Rp ${d.total.toLocaleString()}</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:10px;"><span>Diskon:</span><span>Rp ${(d.potongan || 0).toLocaleString()}</span></div>
+                <div class="line"></div>
+                <p style="text-align:center;font-size:10px;">Terima kasih atas kunjungannya!</p>
+            </body></html>`);
+            win.document.close();
         }
     </script>
 </body>

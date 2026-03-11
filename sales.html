@@ -26,7 +26,6 @@
         #panelCash, #panelUpload { display: none; background: #f9f9f9; padding: 10px; border-radius: 4px; margin-top: 10px; }
         .btn-wa { background: #25d366; color: white; margin-top: 10px; width: 100%; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; display: none; text-align: center; }
         
-        /* Badge Lokasi */
         .info-cabang { background: #2c3e50; color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px; margin-bottom: 10px; display: inline-block; }
     </style>
 </head>
@@ -129,7 +128,6 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // --- SISTEM KEAMANAN & LOKASI ---
         const cabangAktif = localStorage.getItem("cabangSekarang");
         if(!cabangAktif) window.location.href = "login.html";
         document.getElementById('displayCabang').innerText = "Cabang: " + cabangAktif;
@@ -138,7 +136,6 @@
             if (!user) {
                 window.location.href = "login.html";
             } else {
-                // Jika email mengandung "kasir", sembunyikan menu admin
                 if(user.email.includes("kasir")) {
                     document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'none');
                 }
@@ -264,23 +261,43 @@
             document.getElementById("kembalian").innerText = (sisa > 0) ? sisa.toLocaleString() : "0";
         }
 
-        function checkout() {
+        // --- FUNGSI CHECKOUT DENGAN ANTRIAN OTOMATIS ---
+        async function checkout() {
             if(cart.length === 0) return alert("Keranjang Kosong!");
             if(!document.getElementById("sudahBayar").checked) return alert("Konfirmasi 'Customer Sudah Bayar'!");
             
             const skrg = new Date();
-            const formatTanggalMurni = skrg.toISOString().split('T')[0];
+            const yyyy = skrg.getFullYear();
+            const mm = String(skrg.getMonth() + 1).padStart(2, '0');
+            const dd = String(skrg.getDate()).padStart(2, '0');
+            const formatTanggalMurni = `${yyyy}-${mm}-${dd}`;
+
+            // Hitung Nomor Antrian Otomatis
+            let noAntrian = "01";
+            const snap = await db.ref('transaksi').orderByChild('tanggalMurni').equalTo(formatTanggalMurni).once('value');
+            if(snap.exists()) {
+                const jumlahHariIni = Object.keys(snap.val()).length;
+                noAntrian = String(jumlahHariIni + 1).padStart(2, '0');
+            }
+
+            const subtotal = cart.reduce((a, b) => a + (b.harga * b.qty), 0);
+            const persenDiskon = parseFloat(document.getElementById("inputDiskon").value) || 0;
+            const nilaiPotongan = (persenDiskon / 100) * subtotal;
+            const totalAkhir = subtotal - nilaiPotongan;
 
             const transID = "TRX-" + Date.now();
             dataTerakhir = {
                 id: transID,
-                customer: document.getElementById("customerHP").value || "Umum",
+                antrian: noAntrian,
+                customer: document.getElementById("customerHP").value || "-",
                 item: [...cart],
-                total: parseInt(document.getElementById("totalFinal").innerText.replace(/,/g, '')),
+                subtotal: subtotal,
+                potongan: nilaiPotongan,
+                total: totalAkhir,
                 metode: document.getElementById("metodeBayar").value,
                 waktu: skrg.toLocaleString('id-ID'),
                 tanggalMurni: formatTanggalMurni,
-                lokasi: cabangAktif // MENYIMPAN LOKASI
+                lokasi: cabangAktif || "-"
             };
 
             const updates = {};
@@ -288,9 +305,9 @@
             updates['/transaksi/'+transID] = dataTerakhir;
 
             db.ref().update(updates).then(() => {
-                printResi(dataTerakhir);
+                printResi(dataTerakhir); // Cetak Resi Detail
                 document.getElementById("btnWA").style.display = "block";
-                alert("Berhasil!");
+                alert("Berhasil! Antrian: " + noAntrian);
                 cart = []; 
                 document.getElementById("customerHP").value = ""; 
                 document.getElementById("inputDiskon").value = ""; 
@@ -300,14 +317,68 @@
             });
         }
 
+        // --- FUNGSI CETAK RESI DETAIL ---
         function printResi(d) {
             const win = window.open("", "", "width=300,height=600");
-            win.document.write(`<html><body onload="window.print();window.close()"><center><strong>HEGARSARI - ${d.lokasi}</strong></center><hr>${d.id}<br>${d.waktu}<hr>Total: ${d.total.toLocaleString()}</body></html>`);
+            
+            let itemHtml = "";
+            d.item.forEach(i => {
+                itemHtml += `
+                <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px;">
+                    <span>${i.nama} x${i.qty}</span>
+                    <span>${(i.harga * i.qty).toLocaleString()}</span>
+                </div>`;
+            });
+
+            win.document.write(`
+                <html>
+                <head>
+                    <style>
+                        body { font-family: 'Courier New', Courier, monospace; width: 260px; padding: 10px; margin: 0; }
+                        .text-center { text-align: center; }
+                        .line { border-bottom: 1px dashed black; margin: 8px 0; }
+                        .bold { font-weight: bold; }
+                        .small { font-size: 11px; }
+                    </style>
+                </head>
+                <body onload="window.print();window.close()">
+                    <h3 class="text-center" style="margin:0;">ROTI HEGARSARI</h3>
+                    <p class="text-center small" style="margin:4px 0;">Cabang: ${d.lokasi}</p>
+                    <div class="line"></div>
+                    
+                    <div class="small">
+                        ID: ${d.id}<br>
+                        Waktu: ${d.waktu}<br>
+                        Telp: ${d.customer}
+                    </div>
+                    
+                    <h1 class="text-center" style="margin: 10px 0;">NO: ${d.antrian}</h1>
+                    
+                    <div class="line"></div>
+                    
+                    ${itemHtml}
+                    
+                    <div class="line"></div>
+                    
+                    <div style="display: flex; justify-content: space-between;" class="bold">
+                        <span>TOTAL:</span>
+                        <span>Rp ${d.total.toLocaleString()}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 11px;">
+                        <span>Diskon:</span>
+                        <span>Rp ${d.potongan.toLocaleString()}</span>
+                    </div>
+                    
+                    <div class="line"></div>
+                    <p class="text-center small">Terima kasih atas kunjungannya!</p>
+                </body>
+                </html>
+            `);
             win.document.close();
         }
 
         function kirimWA() {
-            const text = `*HEGARSARI - ${dataTerakhir.lokasi}*%0ATotal: Rp ${dataTerakhir.total.toLocaleString()}`;
+            const text = `*ROTI HEGARSARI - ${dataTerakhir.lokasi}*%0AAntrian: ${dataTerakhir.antrian}%0ATotal: Rp ${dataTerakhir.total.toLocaleString()}%0ATerima kasih!`;
             window.open(`https://wa.me/62${dataTerakhir.customer.slice(1)}?text=${text}`);
         }
     </script>

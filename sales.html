@@ -31,7 +31,8 @@
         <a href="index.html" class="menu-admin">🏠 Dashboard</a>
         <a href="sales.html" style="background: #34495e;">🛒 Sales</a>
         <a href="report.html" class="menu-admin">📊 Report</a>
-        <a href="search.html">🔍 Search Resi</a> <a href="admin.html" class="menu-admin">⚙️ Admin</a>
+        <a href="search.html">🔍 Search Resi</a> 
+        <a href="admin.html" class="menu-admin">⚙️ Admin</a>
         <a href="#" onclick="logout()" style="color: #e74c3c; margin-top: 20px;">🚪 Logout</a>
     </div>
 
@@ -123,6 +124,7 @@
             if (!user) {
                 window.location.href = "login.html";
             } else if(role === "user") {
+                // Sembunyikan hanya yang admin saja
                 document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'none');
             }
         });
@@ -232,7 +234,10 @@
             if(!document.getElementById("sudahBayar").checked) return alert("Konfirmasi 'Customer Sudah Bayar'!");
             
             const skrg = new Date();
-            const formatTgl = skrg.toISOString().split('T')[0];
+            const yyyy = skrg.getFullYear();
+            const mm = String(skrg.getMonth() + 1).padStart(2, '0');
+            const dd = String(skrg.getDate()).padStart(2, '0');
+            const formatTgl = `${yyyy}-${mm}-${dd}`;
 
             let noAntrian = "01";
             const snap = await db.ref('transaksi').orderByChild('tanggalMurni').equalTo(formatTgl).once('value');

@@ -17,7 +17,7 @@
         .stat-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-left: 5px solid #3498db; }
         .stat-card p { margin: 10px 0 0; font-size: 24px; font-weight: bold; color: #2c3e50; }
         th { background: #2c3e50; color: white; padding: 12px; text-align: left; font-size: 13px; }
-        td { padding: 12px; border-bottom: 1px solid #eee; font-size: 13px; }
+        td { padding: 12px; border-bottom: 1px solid #eee; font-size: 12px; }
         tr:hover { background-color: #f9f9f9; }
     </style>
 </head>
@@ -66,15 +66,15 @@
                     <tr>
                         <th>No Resi</th>
                         <th>Tanggal</th>
-                        <th>No HP Customer</th>
+                        <th>Lokasi</th> <th>No HP Customer</th>
                         <th>SKU / Produk</th>
                         <th>Qty</th>
-                        <th>Harga Satuan</th>
+                        <th>Harga</th>
                         <th>Subtotal SKU</th>
                     </tr>
                 </thead>
                 <tbody id="tabelReport">
-                    <tr><td colspan="7" align="center">Menghubungkan ke Cloud...</td></tr>
+                    <tr><td colspan="8" align="center">Menghubungkan ke Cloud...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -124,13 +124,14 @@
                         
                         const tanggalSaja = t.waktu ? t.waktu.split(',')[0] : "-";
                         const customerNo = t.customer || "Umum";
+                        const lokasiToko = t.lokasi || "-"; // AMBIL DATA LOKASI
 
-                        // Logika Merinci per Item
                         if(t.item && Array.isArray(t.item)) {
                             t.item.forEach((item, index) => {
                                 html += `<tr>
                                     <td>${index === 0 ? (t.id || id) : ""}</td>
                                     <td>${index === 0 ? tanggalSaja : ""}</td>
+                                    <td>${index === 0 ? lokasiToko : ""}</td>
                                     <td>${index === 0 ? customerNo : ""}</td>
                                     <td>${item.nama}</td>
                                     <td align="center">${item.qty}</td>
@@ -138,27 +139,20 @@
                                     <td><strong>Rp ${(item.qty * item.harga).toLocaleString()}</strong></td>
                                 </tr>`;
                             });
-                        } else {
-                            html += `<tr>
-                                <td>${t.id || id}</td>
-                                <td>${tanggalSaja}</td>
-                                <td>${customerNo}</td>
-                                <td colspan="4" align="center" style="color:gray;">Rincian tidak tersedia</td>
-                            </tr>`;
                         }
                     }
                 });
 
                 document.getElementById('totalOmzet').innerText = "Rp " + totalOmzet.toLocaleString();
                 document.getElementById('jumlahTransaksi').innerText = totalTransaksi;
-                document.getElementById('tabelReport').innerHTML = html || "<tr><td colspan='7' align='center'>Data tidak ditemukan</td></tr>";
+                document.getElementById('tabelReport').innerHTML = html || "<tr><td colspan='8' align='center'>Data tidak ditemukan</td></tr>";
             });
         }
 
         function downloadExcel() {
             const table = document.getElementById("tabelRiwayat");
             const wb = XLSX.utils.table_to_book(table, {sheet: "Laporan Penjualan"});
-            XLSX.writeFile(wb, "Laporan_Detail_Hegarsari.xlsx");
+            XLSX.writeFile(wb, "Laporan_Detail_MultiLokasi.xlsx");
         }
 
         function resetLaporan() {

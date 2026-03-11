@@ -25,20 +25,28 @@
         .input-group input, .input-group select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
         #panelCash, #panelUpload { display: none; background: #f9f9f9; padding: 10px; border-radius: 4px; margin-top: 10px; }
         .btn-wa { background: #25d366; color: white; margin-top: 10px; width: 100%; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; display: none; text-align: center; }
+        
+        /* Badge Lokasi */
+        .info-cabang { background: #2c3e50; color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px; margin-bottom: 10px; display: inline-block; }
     </style>
 </head>
 <body>
     <div class="sidebar">
         <h2>🍞 Hegarsari</h2>
-        <a href="index.html">🏠 Dashboard</a>
+        <a href="index.html" class="menu-admin">🏠 Dashboard</a>
         <a href="sales.html" style="background: #34495e;">🛒 Sales</a>
-        <a href="report.html">📊 Report</a>
-        <a href="search.html">🔍 Search Resi</a>
-        <a href="admin.html">⚙️ Admin</a>
+        <a href="report.html" class="menu-admin">📊 Report</a>
+        <a href="search.html" class="menu-admin">🔍 Search Resi</a>
+        <a href="admin.html" class="menu-admin">⚙️ Admin</a>
+        <a href="#" onclick="logout()" style="color: #e74c3c;">🚪 Logout</a>
     </div>
 
     <div class="content">
-        <h1>Kasir Penjualan</h1>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h1>Kasir Penjualan</h1>
+            <div id="displayCabang" class="info-cabang">Cabang: -</div>
+        </div>
+
         <div style="display: flex; gap: 20px; flex-wrap: wrap;">
             <div class="card" style="flex: 1; min-width: 350px;">
                 <input type="text" id="searchMenu" placeholder="🔍 Cari nama roti..." oninput="renderProduk()" style="width:100%; padding:10px; margin-bottom:15px; border-radius:5px; border:1px solid #ddd;">
@@ -105,6 +113,7 @@
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
     <script>
@@ -119,6 +128,29 @@
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
+
+        // --- SISTEM KEAMANAN & LOKASI ---
+        const cabangAktif = localStorage.getItem("cabangSekarang");
+        if(!cabangAktif) window.location.href = "login.html";
+        document.getElementById('displayCabang').innerText = "Cabang: " + cabangAktif;
+
+        firebase.auth().onAuthStateChanged((user) => {
+            if (!user) {
+                window.location.href = "login.html";
+            } else {
+                // Jika email mengandung "kasir", sembunyikan menu admin
+                if(user.email.includes("kasir")) {
+                    document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'none');
+                }
+            }
+        });
+
+        function logout() {
+            firebase.auth().signOut().then(() => {
+                localStorage.removeItem("cabangSekarang");
+                window.location.href = "login.html";
+            });
+        }
 
         let produkObj = {};
         let cart = [];
@@ -207,7 +239,6 @@
                     </div>`;
             });
 
-            // LOGIKA DISKON DAN SUBTOTAL
             const persenDiskon = parseFloat(document.getElementById("inputDiskon").value) || 0;
             const nilaiPotongan = (persenDiskon / 100) * subtotal;
             const totalAkhir = subtotal - nilaiPotongan;
@@ -223,9 +254,7 @@
             document.getElementById("panelCash").style.display = (metode === "Cash") ? "block" : "none";
         }
 
-        function toggleUploadSection() {
-            // Placeholder jika diperlukan upload bukti di masa depan
-        }
+        function toggleUploadSection() {}
 
         function hitungKembalian() {
             const totalStr = document.getElementById("totalFinal").innerText.replace(/,/g, '');
@@ -240,10 +269,7 @@
             if(!document.getElementById("sudahBayar").checked) return alert("Konfirmasi 'Customer Sudah Bayar'!");
             
             const skrg = new Date();
-            const yyyy = skrg.getFullYear();
-            const mm = String(skrg.getMonth() + 1).padStart(2, '0');
-            const dd = String(skrg.getDate()).padStart(2, '0');
-            const formatTanggalMurni = `${yyyy}-${mm}-${dd}`;
+            const formatTanggalMurni = skrg.toISOString().split('T')[0];
 
             const transID = "TRX-" + Date.now();
             dataTerakhir = {
@@ -253,7 +279,8 @@
                 total: parseInt(document.getElementById("totalFinal").innerText.replace(/,/g, '')),
                 metode: document.getElementById("metodeBayar").value,
                 waktu: skrg.toLocaleString('id-ID'),
-                tanggalMurni: formatTanggalMurni
+                tanggalMurni: formatTanggalMurni,
+                lokasi: cabangAktif // MENYIMPAN LOKASI
             };
 
             const updates = {};
@@ -275,12 +302,12 @@
 
         function printResi(d) {
             const win = window.open("", "", "width=300,height=600");
-            win.document.write(`<html><body onload="window.print();window.close()"><center><strong>HEGARSARI</strong></center><hr>${d.id}<br>${d.waktu}<hr>Total: ${d.total.toLocaleString()}</body></html>`);
+            win.document.write(`<html><body onload="window.print();window.close()"><center><strong>HEGARSARI - ${d.lokasi}</strong></center><hr>${d.id}<br>${d.waktu}<hr>Total: ${d.total.toLocaleString()}</body></html>`);
             win.document.close();
         }
 
         function kirimWA() {
-            const text = `*HEGARSARI*%0ATotal: Rp ${dataTerakhir.total.toLocaleString()}`;
+            const text = `*HEGARSARI - ${dataTerakhir.lokasi}*%0ATotal: Rp ${dataTerakhir.total.toLocaleString()}`;
             window.open(`https://wa.me/62${dataTerakhir.customer.slice(1)}?text=${text}`);
         }
     </script>

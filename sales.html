@@ -19,7 +19,7 @@
         .total-highlight { border-top: 3px solid #2c3e50; border-bottom: 3px solid #2c3e50; padding: 15px 0; margin: 15px 0; background: #fcfcfc; text-align: center; }
         .input-group { margin-bottom: 10px; }
         .input-group label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 4px; }
-        .input-group input, .input-group select, .input-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: inherit; }
+        .input-group input, .input-group select, .input-group textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: inherit; }
         #panelCash { display: block; background: #f9f9f9; padding: 10px; border-radius: 4px; margin-top: 10px; }
         .btn-wa { background: #25d366; color: white; margin-top: 10px; width: 100%; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; display: none; text-align: center; text-decoration: none; }
         .info-cabang { background: #2c3e50; color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px; margin-bottom: 10px; display: inline-block; }
@@ -151,29 +151,21 @@
         let filterKategori = "Semua";
         let dataTerakhir = null;
 
-        // --- FUNGSI AUTO-FILL CUSTOMER ---
         function cekCustomerLama() {
             const hp = document.getElementById('customerHP').value;
             const info = document.getElementById('loadInfo');
-            
-            // Hanya cek jika nomor HP sudah lebih dari 9 digit (standar Indonesia)
             if (hp.length >= 9) {
                 info.style.display = "block";
-                
-                // Cari di folder transaksi, filter berdasarkan customerPhone
                 db.ref('transaksi').orderByChild('customerPhone').equalTo(hp).limitToLast(1).once('value', (snap) => {
                     if (snap.exists()) {
-                        const data = snap.val();
-                        const lastTrx = Object.values(data)[0];
+                        const lastTrx = Object.values(snap.val())[0];
                         document.getElementById('customerName').value = lastTrx.customerName || "";
                         info.innerText = "✨ Pelanggan Lama Ditemukan";
                         info.style.color = "#27ae60";
                     } else {
-                        // Jika tidak ketemu di customerPhone, cek di field lama 'customer'
                         db.ref('transaksi').orderByChild('customer').equalTo(hp).limitToLast(1).once('value', (snap2) => {
                             if (snap2.exists()) {
-                                const data2 = snap2.val();
-                                const lastTrx2 = Object.values(data2)[0];
+                                const lastTrx2 = Object.values(snap2.val())[0];
                                 document.getElementById('customerName').value = lastTrx2.customerName || lastTrx2.nama || "";
                                 info.innerText = "✨ Pelanggan Lama Ditemukan";
                                 info.style.color = "#27ae60";
@@ -184,10 +176,7 @@
                         });
                     }
                 });
-            } else {
-                info.style.display = "none";
-                info.innerText = "Mengecek database...";
-            }
+            } else { info.style.display = "none"; info.innerText = "Mengecek database..."; }
         }
 
         db.ref('produk/').on('value', (snap) => { 
@@ -201,9 +190,7 @@
             const categories = new Set();
             Object.values(produkObj).forEach(p => { if(p.kategori) categories.add(p.kategori); });
             tabContainer.innerHTML = `<button class="tab-btn ${filterKategori === 'Semua' ? 'active' : ''}" onclick="setFilter('Semua', this)">Semua</button>`;
-            categories.forEach(cat => {
-                tabContainer.innerHTML += `<button class="tab-btn ${filterKategori === cat ? 'active' : ''}" onclick="setFilter('${cat}', this)">${cat}</button>`;
-            });
+            categories.forEach(cat => { tabContainer.innerHTML += `<button class="tab-btn ${filterKategori === cat ? 'active' : ''}" onclick="setFilter('${cat}', this)">${cat}</button>`; });
         }
 
         function setFilter(kat, btn) {
@@ -220,14 +207,7 @@
             Object.keys(produkObj).forEach(id => {
                 const p = produkObj[id];
                 if(((filterKategori === "Semua") || (p.kategori === filterKategori)) && p.nama.toLowerCase().includes(keyword)) {
-                    container.innerHTML += `
-                        <div class="prod-card">
-                            <img src="${p.foto || 'https://via.placeholder.com/100'}">
-                            <h4>${p.nama}</h4>
-                            <small>Rp ${parseInt(p.harga).toLocaleString()}</small><br>
-                            <small>Stok: ${p.stok}</small>
-                            <button class="btn-add" onclick="tambahKeCart('${id}')">+</button>
-                        </div>`;
+                    container.innerHTML += `<div class="prod-card"><img src="${p.foto || 'https://via.placeholder.com/100'}"><h4>${p.nama}</h4><small>Rp ${parseInt(p.harga).toLocaleString()}</small><br><small>Stok: ${p.stok}</small><button class="btn-add" onclick="tambahKeCart('${id}')">+</button></div>`;
                 }
             });
         }
@@ -242,10 +222,7 @@
 
         function hapusDariCart(id) {
             let idx = cart.findIndex(c => c.id === id);
-            if (idx > -1) {
-                produkObj[id].stok++;
-                if (cart[idx].qty > 1) cart[idx].qty--; else cart.splice(idx, 1);
-            }
+            if (idx > -1) { produkObj[id].stok++; if (cart[idx].qty > 1) cart[idx].qty--; else cart.splice(idx, 1); }
             renderCart(); renderProduk();
         }
 
@@ -254,11 +231,7 @@
             let subtotal = 0; cartDiv.innerHTML = "";
             cart.forEach(i => {
                 subtotal += i.harga * i.qty;
-                cartDiv.innerHTML += `
-                    <div class="cart-item">
-                        <div style="flex:1;"><strong>${i.nama}</strong><br><small>x${i.qty} - Rp ${(i.harga*i.qty).toLocaleString()}</small></div>
-                        <button class="btn-remove" onclick="hapusDariCart('${i.id}')">✕</button>
-                    </div>`;
+                cartDiv.innerHTML += `<div class="cart-item"><div style="flex:1;"><strong>${i.nama}</strong><br><small>x${i.qty} - Rp ${(i.harga*i.qty).toLocaleString()}</small></div><button class="btn-remove" onclick="hapusDariCart('${i.id}')">✕</button></div>`;
             });
             const pDiskon = parseFloat(document.getElementById("inputDiskon").value) || 0;
             const nPotongan = (pDiskon / 100) * subtotal;
@@ -267,10 +240,7 @@
             hitungKembalian();
         }
 
-        function handlePaymentMethod() {
-            document.getElementById("panelCash").style.display = (document.getElementById("metodeBayar").value === "Cash") ? "block" : "none";
-        }
-
+        function handlePaymentMethod() { document.getElementById("panelCash").style.display = (document.getElementById("metodeBayar").value === "Cash") ? "block" : "none"; }
         function hitungKembalian() {
             const total = parseInt(document.getElementById("totalFinal").innerText.replace(/,/g, '')) || 0;
             const bayar = parseInt(document.getElementById("inputBayar").value) || 0;
@@ -283,7 +253,6 @@
             
             const skrg = new Date();
             const formatTgl = skrg.toISOString().split('T')[0];
-
             let noAntrian = "01";
             const snap = await db.ref('transaksi').orderByChild('tanggalMurni').equalTo(formatTgl).once('value');
             if(snap.exists()) noAntrian = String(Object.keys(snap.val()).length + 1).padStart(2, '0');
@@ -294,19 +263,13 @@
             const trxID = "TRX-" + Date.now();
 
             dataTerakhir = {
-                id: trxID, 
-                antrian: noAntrian, 
+                id: trxID, antrian: noAntrian, 
                 customerName: document.getElementById("customerName").value || "Anonim", 
                 customerPhone: document.getElementById("customerHP").value || "-", 
                 catatan: document.getElementById("catatanOrder").value || "-", 
-                items: [...cart], 
-                subtotal: sub, 
-                potongan: nPot, 
-                total: sub - nPot,
-                metode: document.getElementById("metodeBayar").value, 
-                waktu: skrg.toLocaleString('id-ID'),
-                tanggalMurni: formatTgl, 
-                lokasi: cabangAktif || "-"
+                items: [...cart], subtotal: sub, potongan: nPot, total: sub - nPot,
+                metode: document.getElementById("metodeBayar").value, waktu: skrg.toLocaleString('id-ID'),
+                tanggalMurni: formatTgl, lokasi: cabangAktif || "-"
             };
 
             const updates = {};
@@ -314,8 +277,8 @@
             updates['/transaksi/'+trxID] = dataTerakhir;
 
             db.ref().update(updates).then(() => {
-                printResi(dataTerakhir, "CUSTOMER");
-                setTimeout(() => printResi(dataTerakhir, "KITCHEN"), 1000); 
+                // REVISI: CETAK DALAM SATU JENDELA
+                printStrukGabungan(dataTerakhir);
 
                 document.getElementById("btnWA").style.display = "block";
                 alert("Berhasil! Antrian: " + noAntrian);
@@ -330,47 +293,52 @@
             });
         }
 
-        function printResi(d, tipe) {
-            const win = window.open("", "", "width=300,height=600");
-            let itemsStr = "";
-            
+        // FUNGSI PRINT GABUNGAN (REKOMENDASI)
+        function printStrukGabungan(d) {
+            const win = window.open("", "", "width=300,height=800");
+            let itemsCust = "";
             d.items.forEach(i => {
-                const hargaStr = (tipe === "CUSTOMER") ? `<span>${(i.harga*i.qty).toLocaleString()}</span>` : "";
-                itemsStr += `<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
-                    <span>${i.nama} x${i.qty}</span>${hargaStr}</div>`;
+                itemsCust += `<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
+                    <span>${i.nama} x${i.qty}</span><span>${(i.harga*i.qty).toLocaleString()}</span></div>`;
             });
 
-            const footer = (tipe === "CUSTOMER") ? `
-                <div class="line"></div>
-                <div style="display:flex;justify-content:space-between;" class="small bold"><span>TOTAL:</span><span>Rp ${d.total.toLocaleString()}</span></div>
-                <div style="display:flex;justify-content:space-between;font-size:10px;"><span>Diskon:</span><span>Rp ${d.potongan.toLocaleString()}</span></div>
-                <div class="line"></div>
-                <p style="text-align:center;font-size:10px;">Terima kasih ${d.customerName}!</p>
-            ` : `
-                <div class="line"></div>
-                <div class="small bold">CATATAN KITCHEN:</div>
-                <div style="font-size:13px; border:1px solid black; padding:5px; margin-top:5px;">${d.catatan}</div>
-                <p style="text-align:center;font-size:12px;margin-top:20px;">-- COPY DAPUR --</p>
-            `;
+            let itemsKit = "";
+            d.items.forEach(i => {
+                itemsKit += `<div style="font-size:14px;margin-bottom:3px;font-weight:bold;">- ${i.nama} x${i.qty}</div>`;
+            });
 
             win.document.write(`<html><head><style>
-                @page { size: 5.8cm 16cm; margin: 0; }
                 body { font-family: 'Courier New', monospace; width: 5.8cm; padding: 10px; margin: 0; box-sizing: border-box; }
                 .line { border-bottom: 1px dashed black; margin: 8px 0; }
                 .bold { font-weight: bold; }
-                .small { font-size: 11px; }
-                .header-tipe { text-align: center; border: 1px solid black; margin-bottom: 10px; padding: 2px; font-weight: bold; }
+                .center { text-align: center; }
+                .cut-line { border-bottom: 2px solid black; margin: 20px 0; text-align: center; font-size: 10px; }
             </style></head>
             <body onload="window.print();window.close()">
-                <div class="header-tipe">${tipe} COPY</div>
-                <div style="text-align:center;"><h3 style="margin:0;">ROTI HEGARSARI</h3><p class="small" style="margin:4px 0;">Cabang: ${d.lokasi}</p></div>
+                <div class="center bold" style="border:1px solid black;">CUSTOMER COPY</div>
+                <div class="center"><h3 style="margin:5px 0;">ROTI HEGARSARI</h3><p style="font-size:10px;">Cabang: ${d.lokasi}</p></div>
                 <div class="line"></div>
-                <div style="font-size:20px; text-align:center;" class="bold"># ${d.antrian}</div>
-                <div class="small">Nama: ${d.customerName}</div>
-                <div class="small">Waktu: ${d.waktu}</div>
+                <div class="center bold" style="font-size:18px;"># ${d.antrian}</div>
+                <div style="font-size:11px;">ID: ${d.id}<br>Nama: ${d.customerName}<br>Tgl: ${d.waktu}</div>
                 <div class="line"></div>
-                ${itemsStr}
-                ${footer}
+                ${itemsCust}
+                <div class="line"></div>
+                <div style="display:flex;justify-content:space-between;" class="bold"><span>TOTAL:</span><span>Rp ${d.total.toLocaleString()}</span></div>
+                <div class="line"></div>
+                <div class="center" style="font-size:10px;">Terima kasih!</div>
+
+                <div class="cut-line">--------- POTONG DISINI ---------</div>
+
+                <div class="center bold" style="border:1px solid black;">KITCHEN COPY</div>
+                <div class="center bold" style="font-size:24px; margin:10px 0;"># ${d.antrian}</div>
+                <div style="font-size:12px;">Nama: ${d.customerName}<br>Waktu: ${d.waktu}</div>
+                <div class="line"></div>
+                ${itemsKit}
+                <div class="line"></div>
+                <div class="bold">CATATAN:</div>
+                <div style="font-size:14px; background:#eee; padding:5px;">${d.catatan}</div>
+                <div class="line"></div>
+                <div class="center">-- SEGERA DIPROSES --</div>
             </body></html>`);
             win.document.close();
         }
@@ -380,9 +348,7 @@
             const phone = dataTerakhir.customerPhone.startsWith('0') ? '62' + dataTerakhir.customerPhone.slice(1) : dataTerakhir.customerPhone;
             let daftarBarang = "";
             dataTerakhir.items.forEach(i => { daftarBarang += `${i.nama} x${i.qty} = Rp ${(i.harga * i.qty).toLocaleString()}%0A`; });
-
-            let txt = `*ROTI HEGARSARI - ${dataTerakhir.lokasi}*%0A---------------------------%0AHalo *${dataTerakhir.customerName}*, terima kasih!%0A%0A*RINCIAN:*%0A${daftarBarang}`;
-            txt += `---------------------------%0ATotal: *Rp ${dataTerakhir.total.toLocaleString()}*%0AAntrian: *${dataTerakhir.antrian}*%0ACatatan: ${dataTerakhir.catatan}%0A---------------------------`;
+            let txt = `*ROTI HEGARSARI - ${dataTerakhir.lokasi}*%0A---------------------------%0AHalo *${dataTerakhir.customerName}*, terima kasih!%0A%0A*RINCIAN:*%0A${daftarBarang}---------------------------%0ATotal: *Rp ${dataTerakhir.total.toLocaleString()}*%0AAntrian: *${dataTerakhir.antrian}*%0ACatatan: ${dataTerakhir.catatan}%0A---------------------------`;
             window.open(`https://wa.me/${phone}?text=${txt}`);
         }
     </script>

@@ -31,7 +31,8 @@
         <a href="index.html" class="menu-admin">🏠 Dashboard</a>
         <a href="sales.html" style="background: #34495e;">🛒 Sales</a>
         <a href="report.html" class="menu-admin">📊 Report</a>
-        <a href="customers.html">👥 Customers</a> <a href="search.html">🔍 Search Resi</a> 
+        <a href="customers.html">👥 Customers</a> 
+        <a href="search.html">🔍 Search Resi</a> 
         <a href="admin.html" class="menu-admin">⚙️ Admin</a>
         <a href="#" onclick="logout()" style="color: #e74c3c; margin-top: 20px;">🚪 Logout</a>
     </div>
@@ -255,8 +256,8 @@
             dataTerakhir = {
                 id: trxID, 
                 antrian: noAntrian, 
-                customerName: document.getElementById("customerName").value || "Anonim", // Simpan Nama
-                customerPhone: document.getElementById("customerHP").value || "-", // Simpan HP
+                customerName: document.getElementById("customerName").value || "Anonim", 
+                customerPhone: document.getElementById("customerHP").value || "-", 
                 items: [...cart], 
                 subtotal: sub, 
                 potongan: nPot, 
@@ -318,8 +319,33 @@
 
         function kirimWA() {
             if(!dataTerakhir.customerPhone || dataTerakhir.customerPhone === "-") return alert("Nomor HP Kosong!");
+            
             const phone = dataTerakhir.customerPhone.startsWith('0') ? '62' + dataTerakhir.customerPhone.slice(1) : dataTerakhir.customerPhone;
-            const txt = `*ROTI HEGARSARI - ${dataTerakhir.lokasi}*%0A---------------------------%0AHalo *${dataTerakhir.customerName}*, terima kasih telah berbelanja!%0A%0ANo. Antrian: *${dataTerakhir.antrian}*%0AID Transaksi: ${dataTerakhir.id}%0ATotal Bayar: *Rp ${dataTerakhir.total.toLocaleString()}*%0AStatus: LUNAS%0A---------------------------`;
+            
+            // Menyusun daftar barang (mirip format resi)
+            let daftarBarang = "";
+            dataTerakhir.items.forEach(i => {
+                daftarBarang += `${i.nama} x${i.qty} = Rp ${(i.harga * i.qty).toLocaleString()}%0A`;
+            });
+
+            // Menyusun isi pesan lengkap
+            let txt = `*ROTI HEGARSARI - ${dataTerakhir.lokasi}*%0A`;
+            txt += `---------------------------%0A`;
+            txt += `Halo *${dataTerakhir.customerName}*, terima kasih telah berbelanja!%0A%0A`;
+            txt += `*RINCIAN PESANAN:*%0A`;
+            txt += `${daftarBarang}`;
+            txt += `---------------------------%0A`;
+            txt += `Subtotal: Rp ${dataTerakhir.subtotal.toLocaleString()}%0A`;
+            if(dataTerakhir.potongan > 0) txt += `Diskon: -Rp ${dataTerakhir.potongan.toLocaleString()}%0A`;
+            txt += `*TOTAL BAYAR: Rp ${dataTerakhir.total.toLocaleString()}*%0A`;
+            txt += `---------------------------%0A`;
+            txt += `No. Antrian: *${dataTerakhir.antrian}*%0A`;
+            txt += `ID: ${dataTerakhir.id}%0A`;
+            txt += `Waktu: ${dataTerakhir.waktu}%0A%0A`;
+            txt += `Status: *LUNAS*%0A`;
+            txt += `---------------------------%0A`;
+            txt += `_Terima kasih atas kunjungannya!_`;
+
             window.open(`https://wa.me/${phone}?text=${txt}`);
         }
     </script>

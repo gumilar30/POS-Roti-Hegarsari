@@ -10,7 +10,7 @@
         .form-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
-        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: inherit; }
         .btn-save { background: #27ae60; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 10px; }
         .btn-update { background: #f39c12 !important; }
         .btn-cancel { background: #95a5a6; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 10px; display: none; }
@@ -38,6 +38,7 @@
         <a href="index.html" class="menu-admin">🏠 Dashboard</a>
         <a href="sales.html">🛒 Sales</a>
         <a href="report.html" class="menu-admin">📊 Report</a>
+        <a href="customers.html">👥 Customers</a> 
         <a href="search.html">🔍 Search Resi</a>
         <a href="admin.html" class="menu-admin" style="background: #34495e;">⚙️ Admin</a>
         <a href="#" onclick="logout()" style="color: #e74c3c; margin-top: 20px;">🚪 Logout</a>
@@ -46,7 +47,7 @@
     <div class="content">
         <h1>Admin Panel</h1>
 
-        <button class="btn-mega-backup" onclick="megaBackup()">📂 BACKUP SELURUH DATABASE</button>
+        <button class="btn-mega-backup" onclick="megaBackup()">📂 BACKUP SELURUH DATABASE (PRODUK & CUSTOMER)</button>
 
         <div style="display: flex; gap: 20px; flex-wrap: wrap;">
             <div class="form-container" style="flex: 2; min-width: 300px;">
@@ -140,34 +141,70 @@
             if (!user || role !== "superadmin") { window.location.href = "login.html"; }
         });
 
-        // --- FIXED DOWNLOAD FUNCTION DENGAN FOTO ---
+        // --- FIXED DOWNLOAD FUNCTION ---
         async function downloadMasterStok() {
             try {
                 const snap = await db.ref('produk').once('value');
                 const data = snap.val();
                 if(!data) return alert("Data produk kosong!");
-
                 const exportData = Object.keys(data).map(id => ({
                     ID_UNIK: id,
                     NAMA: data[id].nama,
                     KATEGORI: data[id].kategori,
                     HARGA: data[id].harga || 0,
                     STOK: data[id].stok || 0,
-                    FOTO: data[id].foto || "" // Kolom Foto ditambahkan
+                    FOTO: data[id].foto || ""
                 }));
-
                 const ws = XLSX.utils.json_to_sheet(exportData);
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, "Stok");
                 XLSX.writeFile(wb, "Data_Stok_Hegarsari.xlsx");
-            } catch (err) {
-                alert("Gagal download: " + err.message);
-            }
+            } catch (err) { alert("Gagal download: " + err.message); }
+        }
+
+        // --- REVISI MEGA BACKUP (UNTUK AMBIL DATA CUSTOMER JUGA) ---
+        async function megaBackup() {
+            try {
+                const snap = await db.ref('/').once('value');
+                const data = snap.val();
+                if(!data) return alert("Database kosong!");
+
+                const wb = XLSX.utils.book_new();
+
+                // 1. Sheet Produk
+                if(data.produk) {
+                    const prodArr = Object.keys(data.produk).map(id => ({ ID: id, ...data.produk[id] }));
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(prodArr), "PRODUK");
+                }
+
+                // 2. Sheet Transaksi (Ini mengandung data Customer Nama & No HP)
+                if(data.transaksi) {
+                    const trxArr = Object.keys(data.transaksi).map(id => {
+                        const t = data.transaksi[id];
+                        return {
+                            ID_TRX: id,
+                            TANGGAL: t.tanggalMurni,
+                            WAKTU: t.waktu,
+                            CABANG: t.lokasi,
+                            NAMA_CUSTOMER: t.customerName || t.nama || "Anonim",
+                            NO_HP_CUSTOMER: t.customerPhone || t.customer || "-",
+                            TOTAL_BELANJA: t.total,
+                            METODE: t.metode,
+                            CATATAN: t.catatan || "-"
+                        };
+                    });
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(trxArr), "TRANSAKSI_CUSTOMER");
+                }
+
+                XLSX.writeFile(wb, `HEGARSARI_FULL_BACKUP_${new Date().toISOString().split('T')[0]}.xlsx`);
+                alert("Mega Backup Berhasil! Seluruh data produk dan riwayat customer tersimpan.");
+            } catch (e) { alert("Mega Backup Gagal: " + e.message); }
         }
 
         // --- IMPORT UPDATE ---
         function importUpdateStok() {
             const file = document.getElementById('fileUpdateStok').files[0];
+            if(!file) return;
             const reader = new FileReader();
             reader.onload = function(e) {
                 const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
@@ -186,20 +223,6 @@
             reader.readAsArrayBuffer(file);
         }
 
-        // --- MEGA BACKUP ---
-        async function megaBackup() {
-            try {
-                const snap = await db.ref('/').once('value');
-                const data = snap.val();
-                const wb = XLSX.utils.book_new();
-                if(data.produk) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(Object.keys(data.produk).map(id => ({ID:id, ...data.produk[id]}))), "PRODUK");
-                if(data.transaksi) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(Object.keys(data.transaksi).map(id => ({ID_TRX:id, ...data.transaksi[id]}))), "TRANSAKSI");
-                XLSX.writeFile(wb, `HEGARSARI_BACKUP_${new Date().toISOString().split('T')[0]}.xlsx`);
-                alert("Backup Berhasil!");
-            } catch (e) { alert("Gagal: " + e.message); }
-        }
-
-        // --- STANDAR FUNGSI ---
         function generateHegarID() {
             const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
             let res = ''; for (let i = 0; i < 6; i++) res += chars.charAt(Math.floor(Math.random() * chars.length));

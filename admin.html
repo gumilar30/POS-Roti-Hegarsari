@@ -27,17 +27,9 @@
         .search-container { margin-bottom: 15px; }
         .search-container input { width: 100%; padding: 10px; border-radius: 20px; border: 1px solid #ddd; padding-left: 20px; box-sizing: border-box; }
         .cat-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #f9f9f9; }
-        .tools-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
-        .btn-tool { padding: 10px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 12px; color: white; text-align: center; text-decoration: none; }
-        
-        /* Gaya Khusus Tombol Backup agar Mencolok */
-        .btn-mega-backup { 
-            background: #6c5ce7; color: white; width: 100%; padding: 18px; border: none; 
-            border-radius: 10px; cursor: pointer; font-weight: bold; margin-bottom: 25px; 
-            font-size: 16px; box-shadow: 0 4px 15px rgba(108, 92, 231, 0.4);
-            display: flex; align-items: center; justify-content: center; gap: 10px;
-        }
-        .btn-mega-backup:hover { background: #5b4bc4; }
+        .tools-grid { display: flex; gap: 10px; margin-top: 15px; }
+        .btn-tool { flex: 1; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 13px; color: white; text-align: center; text-decoration: none; display: block; }
+        .btn-mega-backup { background: #6c5ce7; color: white; width: 100%; padding: 18px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; margin-bottom: 25px; font-size: 16px; box-shadow: 0 4px 15px rgba(108, 92, 231, 0.4); display: flex; align-items: center; justify-content: center; gap: 10px; }
     </style>
 </head>
 <body>
@@ -52,11 +44,9 @@
     </div>
 
     <div class="content">
-        <h1>Admin Panel (Manajemen Toko)</h1>
+        <h1>Admin Panel</h1>
 
-        <button class="btn-mega-backup" onclick="megaBackup()">
-            <span>📂</span> BACKUP SELURUH DATABASE (EXCEL MULTI-SHEET)
-        </button>
+        <button class="btn-mega-backup" onclick="megaBackup()">📂 BACKUP SELURUH DATABASE</button>
 
         <div style="display: flex; gap: 20px; flex-wrap: wrap;">
             <div class="form-container" style="flex: 2; min-width: 300px;">
@@ -78,7 +68,6 @@
                 <hr>
                 <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
                     <h4 style="margin-top:0;">🚀 Update Harga & Stok Massal</h4>
-                    <p style="font-size: 11px; color: #666;">Edit banyak data lewat Excel sekaligus.</p>
                     <div class="tools-grid">
                         <button onclick="downloadMasterStok()" class="btn-tool" style="background: #2980b9;">📥 1. Download Data</button>
                         <label class="btn-tool" style="background: #27ae60; cursor: pointer;">
@@ -97,13 +86,9 @@
                     <div id="listKategori" style="margin-top: 10px; min-height: 120px;"></div>
                     <div id="paginationKat" class="pagination"></div>
                 </div>
-
                 <div class="danger-zone">
                     <h3 style="color: #e74c3c;">🧹 Bersihkan Transaksi</h3>
-                    <div class="form-group">
-                        <label>Cabang:</label>
-                        <select id="delCabang"><option value="Semua">Semua Cabang</option></select>
-                    </div>
+                    <div class="form-group"><label>Cabang:</label><select id="delCabang"><option value="Semua">Semua Cabang</option></select></div>
                     <div style="display: flex; gap: 5px;">
                         <div class="form-group" style="flex:1;"><label>Dari:</label><input type="date" id="delStart"></div>
                         <div class="form-group" style="flex:1;"><label>Sampai:</label><input type="date" id="delEnd"></div>
@@ -116,14 +101,10 @@
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
                 <h3>Daftar Stok Produk</h3>
-                <div class="search-container" style="width: 300px;">
-                    <input type="text" id="searchProduk" placeholder="🔍 Cari nama produk..." oninput="renderProduk()">
-                </div>
+                <div class="search-container" style="width: 300px;"><input type="text" id="searchProduk" placeholder="🔍 Cari nama produk..." oninput="renderProduk()"></div>
             </div>
             <table style="width: 100%; border-collapse: collapse;">
-                <thead>
-                    <tr><th>Foto</th><th>Nama Produk & ID</th><th>Kategori</th><th>Harga</th><th>Stok</th><th>Aksi</th></tr>
-                </thead>
+                <thead><tr><th>Foto</th><th>Nama Produk & ID</th><th>Kategori</th><th>Harga</th><th>Stok</th><th>Aksi</th></tr></thead>
                 <tbody id="tabelProduk"></tbody>
             </table>
             <div id="paginationProd" class="pagination" style="margin-top: 20px;"></div>
@@ -159,36 +140,45 @@
             if (!user || role !== "superadmin") { window.location.href = "sales.html"; }
         });
 
-        // --- 1. FUNGSI MEGA BACKUP (MULTI-SHEET) ---
+        // --- FIXED DOWNLOAD FUNCTION ---
+        async function downloadMasterStok() {
+            try {
+                // Ambil data terbaru langsung dari DB untuk memastikan tidak kosong
+                const snap = await db.ref('produk').once('value');
+                const data = snap.val();
+                if(!data) return alert("Data produk kosong!");
+
+                const exportData = Object.keys(data).map(id => ({
+                    ID_UNIK: id,
+                    NAMA: data[id].nama,
+                    KATEGORI: data[id].kategori,
+                    HARGA: data[id].harga || 0,
+                    STOK: data[id].stok || 0
+                }));
+
+                const ws = XLSX.utils.json_to_sheet(exportData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Stok");
+                XLSX.writeFile(wb, "Data_Stok_Hegarsari.xlsx");
+            } catch (err) {
+                alert("Gagal download: " + err.message);
+            }
+        }
+
+        // --- MEGA BACKUP ---
         async function megaBackup() {
             try {
                 const snap = await db.ref('/').once('value');
                 const data = snap.val();
                 const wb = XLSX.utils.book_new();
-
-                // Sheet Produk
-                const prodData = Object.keys(data.produk || {}).map(id => ({ ID: id, ...data.produk[id] }));
-                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(prodData), "PRODUK");
-
-                // Sheet Transaksi
-                const trxData = Object.keys(data.transaksi || {}).map(id => ({ ID_TRX: id, ...data.transaksi[id] }));
-                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(trxData), "TRANSAKSI");
-
-                // Sheet Kategori
-                const katData = Object.keys(data.kategori_produk || {}).map(id => ({ NAMA: data.kategori_produk[id] }));
-                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(katData), "KATEGORI");
-
-                XLSX.writeFile(wb, `HEGARSARI_DATABASE_BACKUP_${new Date().toISOString().split('T')[0]}.xlsx`);
-                alert("Backup Berhasil Disimpan!");
-            } catch (e) { alert("Backup Gagal: " + e.message); }
+                if(data.produk) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(Object.keys(data.produk).map(id => ({ID:id, ...data.produk[id]}))), "PRODUK");
+                if(data.transaksi) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(Object.keys(data.transaksi).map(id => ({ID_TRX:id, ...data.transaksi[id]}))), "TRANSAKSI");
+                XLSX.writeFile(wb, `HEGARSARI_BACKUP_${new Date().toISOString().split('T')[0]}.xlsx`);
+                alert("Backup Berhasil!");
+            } catch (e) { alert("Gagal: " + e.message); }
         }
 
-        // --- 2. UPDATE MASSAL HARGA & STOK ---
-        function downloadMasterStok() {
-            const dataToExport = allProduk.map(p => ({ ID_UNIK: p.id, NAMA: p.nama, HARGA: p.harga, STOK: p.stok }));
-            XLSX.writeFile(XLSX.utils.book_append_sheet(XLSX.utils.book_new(), XLSX.utils.json_to_sheet(dataToExport), "Stok"), "Master_Stok_Edit.xlsx");
-        }
-
+        // --- IMPORT UPDATE ---
         function importUpdateStok() {
             const file = document.getElementById('fileUpdateStok').files[0];
             const reader = new FileReader();
@@ -208,75 +198,13 @@
             reader.readAsArrayBuffer(file);
         }
 
-        // --- 3. MANAJEMEN PRODUK & TABEL ---
+        // --- STANDAR FUNSI (CRUD & RENDER) ---
         function generateHegarID() {
             const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-            let result = '';
-            for (let i = 0; i < 6; i++) { result += chars.charAt(Math.floor(Math.random() * chars.length)); }
-            return 'HEGAR-' + result;
+            let res = ''; for (let i = 0; i < 6; i++) res += chars.charAt(Math.floor(Math.random() * chars.length));
+            return 'HEGAR-' + res;
         }
 
-        function renderProduk() {
-            const keyword = document.getElementById('searchProduk').value.toLowerCase();
-            const table = document.getElementById('tabelProduk');
-            let filtered = allProduk.filter(p => p.nama.toLowerCase().includes(keyword)).sort((a,b)=>a.kategori.localeCompare(b.kategori));
-            table.innerHTML = "";
-            filtered.slice((pageProd-1)*limitProd, pageProd*limitProd).forEach(p => {
-                table.innerHTML += `<tr>
-                    <td><img src="${p.foto||'https://via.placeholder.com/40'}" class="img-preview"></td>
-                    <td><strong style="font-size:15px;">${p.nama}</strong><br><small style="color:#7f8c8d;">ID: ${p.id}</small></td>
-                    <td>${p.kategori}</td>
-                    <td>Rp ${p.harga.toLocaleString()}</td>
-                    <td><strong style="color:${p.stok<=5?'red':'black'}">${p.stok}</strong></td>
-                    <td>
-                        <button class="btn-edit" onclick="editProduk('${p.id}','${p.nama}',${p.harga},${p.stok},'${p.kategori}','${p.foto}')">Edit</button>
-                        <button class="btn-delete" onclick="hapusProduk('${p.id}')">Hapus</button>
-                    </td>
-                </tr>`;
-            });
-            const total = Math.ceil(filtered.length / limitProd);
-            document.getElementById('paginationProd').innerHTML = `<button class="page-btn" onclick="changePageProd(-1)" ${pageProd==1?'disabled':''}>Prev</button><span>Halaman ${pageProd} dari ${total||1}</span><button class="page-btn" onclick="changePageProd(1)" ${pageProd==total||total==0?'disabled':''}>Next</button>`;
-        }
-
-        function simpanProduk() {
-            let key = document.getElementById('editKey').value;
-            const data = {
-                nama: document.getElementById('namaProduk').value,
-                harga: parseInt(document.getElementById('hargaProduk').value),
-                stok: parseInt(document.getElementById('stokProduk').value),
-                kategori: document.getElementById('kategoriProduk').value,
-                foto: document.getElementById('fotoProduk').value
-            };
-            if(!data.nama || !data.kategori) return alert("Lengkapi data!");
-            if (!key) key = generateHegarID();
-            db.ref('produk/' + key).set(data).then(() => { alert("Berhasil!"); resetForm(); });
-        }
-
-        function editProduk(key, n, h, s, k, f) {
-            document.getElementById('formTitle').innerText = "Mode Edit: " + key;
-            document.getElementById('editKey').value = key;
-            document.getElementById('namaProduk').value = n;
-            document.getElementById('hargaProduk').value = h;
-            document.getElementById('stokProduk').value = s;
-            document.getElementById('kategoriProduk').value = k;
-            document.getElementById('fotoProduk').value = f;
-            document.getElementById('btnSave').innerText = "Update Produk";
-            document.getElementById('btnSave').classList.add('btn-update');
-            document.getElementById('btnCancel').style.display = "block";
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        function resetForm() {
-            document.getElementById('editKey').value = ""; document.getElementById('namaProduk').value = "";
-            document.getElementById('hargaProduk').value = ""; document.getElementById('stokProduk').value = "";
-            document.getElementById('kategoriProduk').value = ""; document.getElementById('fotoProduk').value = "";
-            document.getElementById('formTitle').innerText = "Tambah / Edit Produk";
-            document.getElementById('btnSave').innerText = "💾 Simpan Produk";
-            document.getElementById('btnSave').classList.remove('btn-update');
-            document.getElementById('btnCancel').style.display = "none";
-        }
-
-        // --- FUNGSI PENDUKUNG LAINNYA ---
         function muatKategori() {
             db.ref('kategori_produk').on('value', (snap) => {
                 allKategori = []; const data = snap.val() || {};
@@ -302,6 +230,7 @@
             if(kat) db.ref('kategori_produk').push(kat).then(() => { document.getElementById('newKategori').value=""; pageKat=1; });
         }
         function hapusKategori(id) { if(confirm("Hapus?")) db.ref('kategori_produk/'+id).remove(); }
+
         function muatProduk() {
             db.ref('produk').on('value', (snap) => {
                 allProduk = []; const data = snap.val() || {};
@@ -309,7 +238,57 @@
                 renderProduk();
             });
         }
+        function renderProduk() {
+            const keyword = document.getElementById('searchProduk').value.toLowerCase();
+            const table = document.getElementById('tabelProduk');
+            let filtered = allProduk.filter(p => p.nama.toLowerCase().includes(keyword)).sort((a,b)=>a.kategori.localeCompare(b.kategori));
+            table.innerHTML = "";
+            filtered.slice((pageProd-1)*limitProd, pageProd*limitProd).forEach(p => {
+                table.innerHTML += `<tr>
+                    <td><img src="${p.foto||'https://via.placeholder.com/40'}" class="img-preview"></td>
+                    <td><strong style="font-size:15px;">${p.nama}</strong><br><small style="color:#7f8c8d;">ID: ${p.id}</small></td>
+                    <td>${p.kategori}</td>
+                    <td>Rp ${p.harga.toLocaleString()}</td>
+                    <td><strong style="color:${p.stok<=5?'red':'black'}">${p.stok}</strong></td>
+                    <td><button class="btn-edit" onclick="editProduk('${p.id}','${p.nama}',${p.harga},${p.stok},'${p.kategori}','${p.foto}')">Edit</button>
+                        <button class="btn-delete" onclick="hapusProduk('${p.id}')">Hapus</button></td>
+                </tr>`;
+            });
+            const total = Math.ceil(filtered.length / limitProd);
+            document.getElementById('paginationProd').innerHTML = `<button class="page-btn" onclick="changePageProd(-1)" ${pageProd==1?'disabled':''}>Prev</button><span>${pageProd}/${total||1}</span><button class="page-btn" onclick="changePageProd(1)" ${pageProd==total||total==0?'disabled':''}>Next</button>`;
+        }
         function changePageProd(dir) { pageProd += dir; renderProduk(); }
+
+        function simpanProduk() {
+            let key = document.getElementById('editKey').value;
+            const data = { nama: document.getElementById('namaProduk').value, harga: parseInt(document.getElementById('hargaProduk').value), stok: parseInt(document.getElementById('stokProduk').value), kategori: document.getElementById('kategoriProduk').value, foto: document.getElementById('fotoProduk').value };
+            if(!data.nama || !data.kategori) return alert("Lengkapi data!");
+            if (!key) key = generateHegarID();
+            db.ref('produk/' + key).set(data).then(() => { alert("Berhasil!"); resetForm(); });
+        }
+
+        function editProduk(key, n, h, s, k, f) {
+            document.getElementById('formTitle').innerText = "Mode Edit: " + key;
+            document.getElementById('editKey').value = key;
+            document.getElementById('namaProduk').value = n; document.getElementById('hargaProduk').value = h;
+            document.getElementById('stokProduk').value = s; document.getElementById('kategoriProduk').value = k;
+            document.getElementById('fotoProduk').value = f;
+            document.getElementById('btnSave').innerText = "Update Produk";
+            document.getElementById('btnSave').classList.add('btn-update');
+            document.getElementById('btnCancel').style.display = "block";
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function resetForm() {
+            document.getElementById('editKey').value = ""; document.getElementById('namaProduk').value = "";
+            document.getElementById('hargaProduk').value = ""; document.getElementById('stokProduk').value = "";
+            document.getElementById('kategoriProduk').value = ""; document.getElementById('fotoProduk').value = "";
+            document.getElementById('formTitle').innerText = "Tambah / Edit Produk";
+            document.getElementById('btnSave').innerText = "💾 Simpan Produk";
+            document.getElementById('btnSave').classList.remove('btn-update');
+            document.getElementById('btnCancel').style.display = "none";
+        }
+
         function hapusProduk(key) { if(confirm("Yakin hapus?")) db.ref('produk/' + key).remove(); }
         async function hapusTransaksiRentang() {
             const cabang = document.getElementById('delCabang').value;

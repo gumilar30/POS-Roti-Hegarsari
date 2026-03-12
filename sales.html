@@ -19,10 +19,11 @@
         .total-highlight { border-top: 3px solid #2c3e50; border-bottom: 3px solid #2c3e50; padding: 15px 0; margin: 15px 0; background: #fcfcfc; text-align: center; }
         .input-group { margin-bottom: 10px; }
         .input-group label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 4px; }
-        .input-group input, .input-group select, .input-group textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: inherit; }
+        .input-group input, .input-group select, .input-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: inherit; }
         #panelCash { display: block; background: #f9f9f9; padding: 10px; border-radius: 4px; margin-top: 10px; }
         .btn-wa { background: #25d366; color: white; margin-top: 10px; width: 100%; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; display: none; text-align: center; text-decoration: none; }
         .info-cabang { background: #2c3e50; color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px; margin-bottom: 10px; display: inline-block; }
+        .auto-loading { font-size: 10px; color: #3498db; font-style: italic; display: none; }
     </style>
 </head>
 <body>
@@ -31,7 +32,8 @@
         <a href="index.html" class="menu-admin">🏠 Dashboard</a>
         <a href="sales.html" style="background: #34495e;">🛒 Sales</a>
         <a href="report.html" class="menu-admin">📊 Report</a>
-        <a href="customers.html">👥 Customers</a> <a href="search.html">🔍 Search Resi</a> 
+        <a href="customers.html">👥 Customers</a> 
+        <a href="search.html">🔍 Search Resi</a> 
         <a href="admin.html" class="menu-admin">⚙️ Admin</a>
         <a href="#" onclick="logout()" style="color: #e74c3c; margin-top: 20px;">🚪 Logout</a>
     </div>
@@ -58,12 +60,13 @@
                 <div class="payment-section">
                     <div style="display: flex; gap: 5px;">
                         <div class="input-group" style="flex: 1;">
-                            <label>Nama Customer:</label>
-                            <input type="text" id="customerName" placeholder="Nama">
+                            <label>No. HP (WA):</label>
+                            <input type="number" id="customerHP" placeholder="0812..." oninput="cekCustomerLama()">
+                            <span id="loadInfo" class="auto-loading">Mengecek database...</span>
                         </div>
                         <div class="input-group" style="flex: 1;">
-                            <label>No. HP (WA):</label>
-                            <input type="number" id="customerHP" placeholder="0812...">
+                            <label>Nama Customer:</label>
+                            <input type="text" id="customerName" placeholder="Nama">
                         </div>
                     </div>
 
@@ -147,6 +150,45 @@
         let cart = [];
         let filterKategori = "Semua";
         let dataTerakhir = null;
+
+        // --- FUNGSI AUTO-FILL CUSTOMER ---
+        function cekCustomerLama() {
+            const hp = document.getElementById('customerHP').value;
+            const info = document.getElementById('loadInfo');
+            
+            // Hanya cek jika nomor HP sudah lebih dari 9 digit (standar Indonesia)
+            if (hp.length >= 9) {
+                info.style.display = "block";
+                
+                // Cari di folder transaksi, filter berdasarkan customerPhone
+                db.ref('transaksi').orderByChild('customerPhone').equalTo(hp).limitToLast(1).once('value', (snap) => {
+                    if (snap.exists()) {
+                        const data = snap.val();
+                        const lastTrx = Object.values(data)[0];
+                        document.getElementById('customerName').value = lastTrx.customerName || "";
+                        info.innerText = "✨ Pelanggan Lama Ditemukan";
+                        info.style.color = "#27ae60";
+                    } else {
+                        // Jika tidak ketemu di customerPhone, cek di field lama 'customer'
+                        db.ref('transaksi').orderByChild('customer').equalTo(hp).limitToLast(1).once('value', (snap2) => {
+                            if (snap2.exists()) {
+                                const data2 = snap2.val();
+                                const lastTrx2 = Object.values(data2)[0];
+                                document.getElementById('customerName').value = lastTrx2.customerName || lastTrx2.nama || "";
+                                info.innerText = "✨ Pelanggan Lama Ditemukan";
+                                info.style.color = "#27ae60";
+                            } else {
+                                info.innerText = "🆕 Pelanggan Baru";
+                                info.style.color = "#e67e22";
+                            }
+                        });
+                    }
+                });
+            } else {
+                info.style.display = "none";
+                info.innerText = "Mengecek database...";
+            }
+        }
 
         db.ref('produk/').on('value', (snap) => { 
             produkObj = snap.val() || {}; 
@@ -256,7 +298,7 @@
                 antrian: noAntrian, 
                 customerName: document.getElementById("customerName").value || "Anonim", 
                 customerPhone: document.getElementById("customerHP").value || "-", 
-                catatan: document.getElementById("catatanOrder").value || "-", // Simpan Catatan
+                catatan: document.getElementById("catatanOrder").value || "-", 
                 items: [...cart], 
                 subtotal: sub, 
                 potongan: nPot, 
@@ -272,7 +314,6 @@
             updates['/transaksi/'+trxID] = dataTerakhir;
 
             db.ref().update(updates).then(() => {
-                // Cetak dua kali: Customer & Kitchen
                 printResi(dataTerakhir, "CUSTOMER");
                 setTimeout(() => printResi(dataTerakhir, "KITCHEN"), 1000); 
 
@@ -285,6 +326,7 @@
                 document.getElementById("inputDiskon").value = ""; 
                 document.getElementById("inputBayar").value = ""; 
                 document.getElementById("sudahBayar").checked = false;
+                document.getElementById('loadInfo').style.display = "none";
             });
         }
 

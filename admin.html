@@ -18,6 +18,7 @@
         td { padding: 12px; border-bottom: 1px solid #eee; }
         .img-preview { width: 50px; height: 50px; object-fit: cover; border-radius: 5px; }
         .btn-delete { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; }
+        .danger-zone { border-top: 5px solid #e74c3c; background: #fff5f5; }
     </style>
 </head>
 <body>
@@ -32,7 +33,7 @@
     </div>
 
     <div class="content">
-        <h1>Admin Panel (Manajemen Stok)</h1>
+        <h1>Admin Panel (Manajemen Toko)</h1>
 
         <div style="display: flex; gap: 20px; flex-wrap: wrap;">
             <div class="form-container" style="flex: 2; min-width: 300px;">
@@ -62,16 +63,32 @@
                 <button class="btn-save" onclick="simpanProduk()">💾 Simpan Produk</button>
                 
                 <hr>
-                <label style="font-weight: bold; font-size: 14px;">Import dari Excel:</label><br><br>
+                <label style="font-weight: bold; font-size: 14px;">📦 Import Massal (Excel):</label><br><br>
                 <input type="file" id="fileExcel" accept=".xlsx, .xls, .csv" style="font-size: 12px;">
                 <button class="btn-import" onclick="importExcel()">📥 Proses Import</button>
             </div>
 
-            <div class="form-container" style="flex: 1; min-width: 250px;">
-                <h3>Atur Kategori</h3>
-                <input type="text" id="newKategori" placeholder="Nama kategori baru..." style="width: 100%; padding: 8px; margin-bottom: 10px;">
-                <button class="btn-kat" style="width: 100%;" onclick="tambahKategori()">➕ Tambah Kategori</button>
-                <ul id="listKategori" style="margin-top: 15px; font-size: 13px; padding-left: 20px;"></ul>
+            <div style="flex: 1; min-width: 250px; display: flex; flex-direction: column; gap: 20px;">
+                <div class="form-container">
+                    <h3>Atur Kategori</h3>
+                    <input type="text" id="newKategori" placeholder="Nama kategori baru..." style="width: 100%; padding: 8px; margin-bottom: 10px;">
+                    <button class="btn-kat" style="width: 100%;" onclick="tambahKategori()">➕ Tambah Kategori</button>
+                    <ul id="listKategori" style="margin-top: 15px; font-size: 13px; padding-left: 20px;"></ul>
+                </div>
+
+                <div class="form-container danger-zone">
+                    <h3>🧹 Bersihkan Data</h3>
+                    <p style="font-size: 12px; color: #c0392b;">Hapus riwayat transaksi lama secara permanen.</p>
+                    <div class="form-group">
+                        <label>Dari Tanggal:</label>
+                        <input type="date" id="delStart">
+                    </div>
+                    <div class="form-group">
+                        <label>Sampai Tanggal:</label>
+                        <input type="date" id="delEnd">
+                    </div>
+                    <button class="btn-delete" style="width: 100%; padding: 10px;" onclick="hapusTransaksiRentang()">Hapus Permanen</button>
+                </div>
             </div>
         </div>
 
@@ -126,7 +143,7 @@
                 let list = '';
                 Object.keys(data).forEach(id => {
                     options += `<option value="${data[id]}">${data[id]}</option>`;
-                    list += `<li>${data[id]} <a href="#" onclick="hapusKategori('${id}')" style="color:red; margin-left:10px;">[x]</a></li>`;
+                    list += `<li style="margin-bottom:5px;">${data[id]} <button onclick="hapusKategori('${id}')" style="background:none; border:none; color:red; cursor:pointer; font-weight:bold;">[x]</button></li>`;
                 });
                 document.getElementById('kategoriProduk').innerHTML = options;
                 document.getElementById('listKategori').innerHTML = list;
@@ -134,7 +151,7 @@
         }
 
         function tambahKategori() {
-            const kat = document.getElementById('newKategori').value;
+            const kat = document.getElementById('newKategori').value.trim();
             if(!kat) return;
             db.ref('kategori_produk').push(kat).then(() => {
                 document.getElementById('newKategori').value = "";
@@ -162,6 +179,7 @@
                 document.getElementById('namaProduk').value = "";
                 document.getElementById('hargaProduk').value = "";
                 document.getElementById('stokProduk').value = "";
+                document.getElementById('fotoProduk').value = "";
             });
         }
 
@@ -181,7 +199,7 @@
                 if(confirm(`Import ${json.length} data produk?`)) {
                     json.forEach(item => {
                         db.ref('produk').push({
-                            nama: item.Nama || item.nama,
+                            nama: item.Nama || item.nama || "Tanpa Nama",
                             harga: parseInt(item.Harga || item.harga) || 0,
                             stok: parseInt(item.Stok || item.stok) || 0,
                             kategori: item.Kategori || item.kategori || "Umum",
@@ -194,7 +212,35 @@
             reader.readAsArrayBuffer(file);
         }
 
-        // 4. TAMPILKAN TABEL PRODUK
+        // 4. MAINTENANCE: HAPUS TRANSAKSI RENTANG TANGGAL
+        function hapusTransaksiRentang() {
+            const start = document.getElementById('delStart').value;
+            const end = document.getElementById('delEnd').value;
+
+            if (!start || !end) return alert("Pilih rentang tanggal pembersihan!");
+
+            if (confirm(`⚠️ PERINGATAN KERAS!\nSemua riwayat transaksi dari ${start} sampai ${end} akan DIHAPUS PERMANEN dari database.\n\nLanjutkan?`)) {
+                
+                const ref = db.ref('transaksi');
+                ref.orderByChild('tanggalMurni').startAt(start).endAt(end).once('value', (snap) => {
+                    if (!snap.exists()) return alert("Tidak ada data transaksi di tanggal tersebut.");
+
+                    let count = 0;
+                    const updates = {};
+                    snap.forEach((child) => {
+                        updates[child.key] = null;
+                        count++;
+                    });
+
+                    ref.update(updates).then(() => {
+                        alert(`Sukses! ${count} riwayat transaksi telah dibersihkan.`);
+                        location.reload();
+                    });
+                });
+            }
+        }
+
+        // 5. TAMPILKAN TABEL PRODUK
         db.ref('produk/').on('value', (snap) => {
             const data = snap.val();
             let html = "";
@@ -213,7 +259,7 @@
         });
 
         function hapusProduk(key) {
-            if(confirm("Yakin hapus produk?")) db.ref('produk/' + key).remove();
+            if(confirm("Yakin hapus produk ini?")) db.ref('produk/' + key).remove();
         }
 
         function logout() {

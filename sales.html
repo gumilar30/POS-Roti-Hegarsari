@@ -19,7 +19,7 @@
         .total-highlight { border-top: 3px solid #2c3e50; border-bottom: 3px solid #2c3e50; padding: 15px 0; margin: 15px 0; background: #fcfcfc; text-align: center; }
         .input-group { margin-bottom: 10px; }
         .input-group label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 4px; }
-        .input-group input, .input-group select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        .input-group input, .input-group select, .input-group textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: inherit; }
         #panelCash { display: block; background: #f9f9f9; padding: 10px; border-radius: 4px; margin-top: 10px; }
         .btn-wa { background: #25d366; color: white; margin-top: 10px; width: 100%; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; display: none; text-align: center; text-decoration: none; }
         .info-cabang { background: #2c3e50; color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px; margin-bottom: 10px; display: inline-block; }
@@ -31,8 +31,7 @@
         <a href="index.html" class="menu-admin">🏠 Dashboard</a>
         <a href="sales.html" style="background: #34495e;">🛒 Sales</a>
         <a href="report.html" class="menu-admin">📊 Report</a>
-        <a href="customers.html">👥 Customers</a> 
-        <a href="search.html">🔍 Search Resi</a> 
+        <a href="customers.html">👥 Customers</a> <a href="search.html">🔍 Search Resi</a> 
         <a href="admin.html" class="menu-admin">⚙️ Admin</a>
         <a href="#" onclick="logout()" style="color: #e74c3c; margin-top: 20px;">🚪 Logout</a>
     </div>
@@ -69,15 +68,17 @@
                     </div>
 
                     <div class="input-group">
+                        <label>Catatan Khusus (Kitchen):</label>
+                        <textarea id="catatanOrder" rows="2" placeholder="Contoh: Panaskan roti, Less sugar..."></textarea>
+                    </div>
+
+                    <div class="input-group">
                         <label>Diskon (%):</label>
                         <input type="number" id="inputDiskon" placeholder="0" oninput="renderCart()">
                     </div>
                     
                     <div style="font-size: 14px; display: flex; justify-content: space-between; margin-bottom: 5px;">
                         <span>Subtotal:</span> <span>Rp <span id="valSubtotal">0</span></span>
-                    </div>
-                    <div style="font-size: 14px; color: #e67e22; display: flex; justify-content: space-between; margin-bottom: 5px;">
-                        <span>Potongan:</span> <span>-Rp <span id="valPotongan">0</span></span>
                     </div>
                     
                     <div class="total-highlight">
@@ -140,9 +141,7 @@
             adminMenus.forEach(el => el.style.display = (role === "superadmin" ? 'block' : 'none'));
         });
 
-        function logout() {
-            auth.signOut().then(() => { localStorage.clear(); window.location.href = "login.html"; });
-        }
+        function logout() { auth.signOut().then(() => { localStorage.clear(); window.location.href = "login.html"; }); }
 
         let produkObj = {};
         let cart = [];
@@ -222,7 +221,6 @@
             const pDiskon = parseFloat(document.getElementById("inputDiskon").value) || 0;
             const nPotongan = (pDiskon / 100) * subtotal;
             document.getElementById("valSubtotal").innerText = subtotal.toLocaleString();
-            document.getElementById("valPotongan").innerText = nPotongan.toLocaleString();
             document.getElementById("totalFinal").innerText = (subtotal - nPotongan).toLocaleString();
             hitungKembalian();
         }
@@ -258,6 +256,7 @@
                 antrian: noAntrian, 
                 customerName: document.getElementById("customerName").value || "Anonim", 
                 customerPhone: document.getElementById("customerHP").value || "-", 
+                catatan: document.getElementById("catatanOrder").value || "-", // Simpan Catatan
                 items: [...cart], 
                 subtotal: sub, 
                 potongan: nPot, 
@@ -273,25 +272,44 @@
             updates['/transaksi/'+trxID] = dataTerakhir;
 
             db.ref().update(updates).then(() => {
-                printResi(dataTerakhir);
+                // Cetak dua kali: Customer & Kitchen
+                printResi(dataTerakhir, "CUSTOMER");
+                setTimeout(() => printResi(dataTerakhir, "KITCHEN"), 1000); 
+
                 document.getElementById("btnWA").style.display = "block";
                 alert("Berhasil! Antrian: " + noAntrian);
                 cart = []; renderCart(); renderProduk();
                 document.getElementById("customerName").value = "";
                 document.getElementById("customerHP").value = ""; 
+                document.getElementById("catatanOrder").value = "";
                 document.getElementById("inputDiskon").value = ""; 
                 document.getElementById("inputBayar").value = ""; 
                 document.getElementById("sudahBayar").checked = false;
             });
         }
 
-        function printResi(d) {
+        function printResi(d, tipe) {
             const win = window.open("", "", "width=300,height=600");
             let itemsStr = "";
+            
             d.items.forEach(i => {
-                itemsStr += `<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;">
-                    <span>${i.nama} x${i.qty}</span><span>${(i.harga*i.qty).toLocaleString()}</span></div>`;
+                const hargaStr = (tipe === "CUSTOMER") ? `<span>${(i.harga*i.qty).toLocaleString()}</span>` : "";
+                itemsStr += `<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
+                    <span>${i.nama} x${i.qty}</span>${hargaStr}</div>`;
             });
+
+            const footer = (tipe === "CUSTOMER") ? `
+                <div class="line"></div>
+                <div style="display:flex;justify-content:space-between;" class="small bold"><span>TOTAL:</span><span>Rp ${d.total.toLocaleString()}</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:10px;"><span>Diskon:</span><span>Rp ${d.potongan.toLocaleString()}</span></div>
+                <div class="line"></div>
+                <p style="text-align:center;font-size:10px;">Terima kasih ${d.customerName}!</p>
+            ` : `
+                <div class="line"></div>
+                <div class="small bold">CATATAN KITCHEN:</div>
+                <div style="font-size:13px; border:1px solid black; padding:5px; margin-top:5px;">${d.catatan}</div>
+                <p style="text-align:center;font-size:12px;margin-top:20px;">-- COPY DAPUR --</p>
+            `;
 
             win.document.write(`<html><head><style>
                 @page { size: 5.8cm 16cm; margin: 0; }
@@ -299,53 +317,30 @@
                 .line { border-bottom: 1px dashed black; margin: 8px 0; }
                 .bold { font-weight: bold; }
                 .small { font-size: 11px; }
+                .header-tipe { text-align: center; border: 1px solid black; margin-bottom: 10px; padding: 2px; font-weight: bold; }
             </style></head>
             <body onload="window.print();window.close()">
+                <div class="header-tipe">${tipe} COPY</div>
                 <div style="text-align:center;"><h3 style="margin:0;">ROTI HEGARSARI</h3><p class="small" style="margin:4px 0;">Cabang: ${d.lokasi}</p></div>
                 <div class="line"></div>
-                <div class="small bold">Antrian : ${d.antrian}</div>
-                <div class="small">Nama: ${d.customerName}<br>Telp: ${d.customerPhone}</div>
-                <div class="small">ID: ${d.id}<br>Waktu: ${d.waktu}</div>
+                <div style="font-size:20px; text-align:center;" class="bold"># ${d.antrian}</div>
+                <div class="small">Nama: ${d.customerName}</div>
+                <div class="small">Waktu: ${d.waktu}</div>
                 <div class="line"></div>
                 ${itemsStr}
-                <div class="line"></div>
-                <div style="display:flex;justify-content:space-between;" class="small bold"><span>TOTAL:</span><span>Rp ${d.total.toLocaleString()}</span></div>
-                <div style="display:flex;justify-content:space-between;font-size:10px;"><span>Diskon:</span><span>Rp ${d.potongan.toLocaleString()}</span></div>
-                <div class="line"></div>
-                <p style="text-align:center;font-size:10px;">Terima kasih ${d.customerName}!</p>
+                ${footer}
             </body></html>`);
             win.document.close();
         }
 
         function kirimWA() {
             if(!dataTerakhir.customerPhone || dataTerakhir.customerPhone === "-") return alert("Nomor HP Kosong!");
-            
             const phone = dataTerakhir.customerPhone.startsWith('0') ? '62' + dataTerakhir.customerPhone.slice(1) : dataTerakhir.customerPhone;
-            
-            // Menyusun daftar barang (mirip format resi)
             let daftarBarang = "";
-            dataTerakhir.items.forEach(i => {
-                daftarBarang += `${i.nama} x${i.qty} = Rp ${(i.harga * i.qty).toLocaleString()}%0A`;
-            });
+            dataTerakhir.items.forEach(i => { daftarBarang += `${i.nama} x${i.qty} = Rp ${(i.harga * i.qty).toLocaleString()}%0A`; });
 
-            // Menyusun isi pesan lengkap
-            let txt = `*ROTI HEGARSARI - ${dataTerakhir.lokasi}*%0A`;
-            txt += `---------------------------%0A`;
-            txt += `Halo *${dataTerakhir.customerName}*, terima kasih telah berbelanja!%0A%0A`;
-            txt += `*RINCIAN PESANAN:*%0A`;
-            txt += `${daftarBarang}`;
-            txt += `---------------------------%0A`;
-            txt += `Subtotal: Rp ${dataTerakhir.subtotal.toLocaleString()}%0A`;
-            if(dataTerakhir.potongan > 0) txt += `Diskon: -Rp ${dataTerakhir.potongan.toLocaleString()}%0A`;
-            txt += `*TOTAL BAYAR: Rp ${dataTerakhir.total.toLocaleString()}*%0A`;
-            txt += `---------------------------%0A`;
-            txt += `No. Antrian: *${dataTerakhir.antrian}*%0A`;
-            txt += `ID: ${dataTerakhir.id}%0A`;
-            txt += `Waktu: ${dataTerakhir.waktu}%0A%0A`;
-            txt += `Status: *LUNAS*%0A`;
-            txt += `---------------------------%0A`;
-            txt += `_Terima kasih atas kunjungannya!_`;
-
+            let txt = `*ROTI HEGARSARI - ${dataTerakhir.lokasi}*%0A---------------------------%0AHalo *${dataTerakhir.customerName}*, terima kasih!%0A%0A*RINCIAN:*%0A${daftarBarang}`;
+            txt += `---------------------------%0ATotal: *Rp ${dataTerakhir.total.toLocaleString()}*%0AAntrian: *${dataTerakhir.antrian}*%0ACatatan: ${dataTerakhir.catatan}%0A---------------------------`;
             window.open(`https://wa.me/${phone}?text=${txt}`);
         }
     </script>

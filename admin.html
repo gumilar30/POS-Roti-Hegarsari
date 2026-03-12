@@ -64,7 +64,8 @@
                 
                 <hr>
                 <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
-                    <h4 style="margin-top:0;">🚀 Update Stok Massal</h4>
+                    <h4 style="margin-top:0;">🚀 Update Harga & Stok Massal</h4>
+                    <p style="font-size: 11px; color: #666;">Gunakan Excel untuk update banyak data sekaligus.</p>
                     <div class="tools-grid">
                         <button onclick="downloadMasterStok()" class="btn-tool" style="background: #2980b9;">📥 1. Download Data</button>
                         <label class="btn-tool" style="background: #27ae60; cursor: pointer;">
@@ -145,25 +146,29 @@
             if (!user || role !== "superadmin") { window.location.href = "sales.html"; }
         });
 
-        // --- FUNGSI GENERATE ID HEGAR-XXXXXX ---
         function generateHegarID() {
-            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Menghindari I, O, 0, 1 agar tidak tertukar
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
             let result = '';
-            for (let i = 0; i < 6; i++) {
-                result += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
+            for (let i = 0; i < 6; i++) { result += chars.charAt(Math.floor(Math.random() * chars.length)); }
             return 'HEGAR-' + result;
         }
 
-        // --- MASS UPDATE ---
+        // --- 1. DOWNLOAD DATA (SEKARANG ADA KOLOM HARGA) ---
         function downloadMasterStok() {
-            const dataToExport = allProduk.map(p => ({ ID_UNIK: p.id, NAMA: p.nama, KATEGORI: p.kategori, STOK: p.stok }));
+            const dataToExport = allProduk.map(p => ({ 
+                ID_UNIK: p.id, 
+                NAMA: p.nama, 
+                KATEGORI: p.kategori, 
+                HARGA: p.harga, // Kolom Harga ditambahkan
+                STOK: p.stok 
+            }));
             const ws = XLSX.utils.json_to_sheet(dataToExport);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Stok");
             XLSX.writeFile(wb, "Data_Stok_Hegarsari.xlsx");
         }
 
+        // --- 2. IMPORT UPDATE (SEKARANG BISA UPDATE HARGA & STOK) ---
         function importUpdateStok() {
             const file = document.getElementById('fileUpdateStok').files[0];
             if(!file) return;
@@ -172,20 +177,28 @@
                 const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
                 const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                 const json = XLSX.utils.sheet_to_json(firstSheet);
-                if(confirm(`Update ${json.length} produk?`)) {
+                if(confirm(`Update harga/stok untuk ${json.length} produk?`)) {
                     const updates = {};
                     json.forEach(item => {
                         const id = item.ID_UNIK || item.ID;
-                        const stok = item.STOK !== undefined ? item.STOK : item.STOK_SEKARANG;
-                        if(id) updates[`/produk/${id}/stok`] = parseInt(stok) || 0;
+                        // Ambil nilai stok dan harga dari excel (support berbagai nama kolom)
+                        const stokInput = item.STOK !== undefined ? item.STOK : item.STOK_SEKARANG;
+                        const hargaInput = item.HARGA !== undefined ? item.HARGA : item.HARGA_BARU;
+                        
+                        if(id) {
+                            if (stokInput !== undefined) updates[`/produk/${id}/stok`] = parseInt(stokInput) || 0;
+                            if (hargaInput !== undefined) updates[`/produk/${id}/harga`] = parseInt(hargaInput) || 0;
+                        }
                     });
-                    db.ref().update(updates).then(() => { alert("Update Selesai!"); });
+                    db.ref().update(updates).then(() => { 
+                        alert("Update Massal Berhasil!"); 
+                        location.reload();
+                    });
                 }
             };
             reader.readAsArrayBuffer(file);
         }
 
-        // --- SIMPAN / EDIT PRODUK ---
         function simpanProduk() {
             let key = document.getElementById('editKey').value;
             const data = {
@@ -196,19 +209,11 @@
                 foto: document.getElementById('fotoProduk').value
             };
             if(!data.nama || !data.kategori) return alert("Nama dan Kategori wajib isi!");
-
-            if (!key) {
-                // Jika Tambah Baru: Buat ID HEGAR-XXXXXX
-                key = generateHegarID();
-            }
-
-            db.ref('produk/' + key).set(data).then(() => {
-                alert("Berhasil disimpan!");
-                resetForm();
-            });
+            if (!key) key = generateHegarID();
+            db.ref('produk/' + key).set(data).then(() => { alert("Berhasil!"); resetForm(); });
         }
 
-        // --- KATEGORI ---
+        // --- FUNGSI PENDUKUNG (KATEGORI & TABEL) ---
         function muatKategori() {
             db.ref('kategori_produk').on('value', (snap) => {
                 allKategori = []; const data = snap.val() || {};
@@ -235,7 +240,6 @@
         }
         function hapusKategori(id) { if(confirm("Hapus?")) db.ref('kategori_produk/'+id).remove(); }
 
-        // --- PRODUK ---
         function muatProduk() {
             db.ref('produk').on('value', (snap) => {
                 allProduk = []; const data = snap.val() || {};

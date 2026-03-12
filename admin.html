@@ -15,7 +15,6 @@
         .btn-update { background: #f39c12 !important; }
         .btn-cancel { background: #95a5a6; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 10px; display: none; }
         
-        /* Pagination Styling */
         .pagination { display: flex; gap: 5px; margin-top: 10px; justify-content: center; align-items: center; }
         .page-btn { padding: 5px 10px; border: 1px solid #ddd; background: white; cursor: pointer; border-radius: 4px; font-size: 12px; }
         .page-btn.active { background: #3498db; color: white; border-color: #3498db; }
@@ -32,7 +31,6 @@
         .search-container input { width: 100%; padding: 10px; border-radius: 20px; border: 1px solid #ddd; padding-left: 20px; box-sizing: border-box; }
         .cat-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #f9f9f9; }
         
-        /* New Tools Area */
         .tools-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
         .btn-tool { padding: 10px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 12px; color: white; text-align: center; text-decoration: none; }
     </style>
@@ -71,7 +69,6 @@
                 <hr>
                 <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
                     <h4 style="margin-top:0;">🚀 Update Stok Massal</h4>
-                    <p style="font-size: 11px; color: #666;">1. Download data produk. 2. Edit stok di Excel. 3. Upload kembali.</p>
                     <div class="tools-grid">
                         <button onclick="downloadMasterStok()" class="btn-tool" style="background: #2980b9;">📥 1. Download Data</button>
                         <label class="btn-tool" style="background: #27ae60; cursor: pointer;">
@@ -92,16 +89,24 @@
                 </div>
 
                 <div class="form-container danger-zone">
-                    <h3>🧹 Bersihkan Data</h3>
+                    <h3>🧹 Bersihkan Data Penjualan</h3>
                     <div class="form-group">
-                        <label>Dari Tanggal:</label>
-                        <input type="date" id="delStart">
+                        <label>Pilih Lokasi Cabang:</label>
+                        <select id="delCabang">
+                            <option value="Semua">Semua Cabang</option>
+                            </select>
                     </div>
-                    <div class="form-group">
-                        <label>Sampai Tanggal:</label>
-                        <input type="date" id="delEnd">
+                    <div style="display: flex; gap: 5px;">
+                        <div class="form-group" style="flex:1;">
+                            <label>Dari:</label>
+                            <input type="date" id="delStart">
+                        </div>
+                        <div class="form-group" style="flex:1;">
+                            <label>Sampai:</label>
+                            <input type="date" id="delEnd">
+                        </div>
                     </div>
-                    <button class="btn-delete" style="width: 100%; padding: 10px;" onclick="hapusTransaksiRentang()">Hapus Permanen</button>
+                    <button class="btn-delete" style="width: 100%; padding: 12px; font-size: 14px;" onclick="hapusTransaksiRentang()">Hapus Permanen</button>
                 </div>
             </div>
         </div>
@@ -113,7 +118,7 @@
                     <input type="text" id="searchProduk" placeholder="🔍 Cari nama produk..." oninput="renderProduk()">
                 </div>
             </div>
-            <table id="tableMaster" style="width: 100%; border-collapse: collapse;">
+            <table style="width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr><th>Foto</th><th>Nama</th><th>Kategori</th><th>Harga</th><th>Stok</th><th>Aksi</th></tr>
                 </thead>
@@ -153,13 +158,59 @@
             if (!user || role !== "superadmin") { window.location.href = "sales.html"; }
         });
 
-        // --- MASS UPDATE LOGIC ---
+        // MUAT DAFTAR CABANG UNTUK DROPDOWN HAPUS
+        db.ref('cabang/').once('value', (snap) => {
+            const selectDel = document.getElementById('delCabang');
+            snap.forEach(child => {
+                let opt = document.createElement('option');
+                opt.value = child.val();
+                opt.innerText = child.val();
+                selectDel.appendChild(opt);
+            });
+        });
+
+        // --- HAPUS DATA DENGAN FILTER CABANG ---
+        function hapusTransaksiRentang() {
+            const cabang = document.getElementById('delCabang').value;
+            const start = document.getElementById('delStart').value;
+            const end = document.getElementById('delEnd').value;
+
+            if (!start || !end) return alert("Pilih rentang tanggal!");
+
+            const confirmMsg = `⚠️ PERINGATAN!\nLokasi: ${cabang}\nRentang: ${start} s/d ${end}\n\nData akan DIHAPUS PERMANEN. Lanjutkan?`;
+            
+            if (confirm(confirmMsg)) {
+                db.ref('transaksi').orderByChild('tanggalMurni').startAt(start).endAt(end).once('value', (snap) => {
+                    if (!snap.exists()) return alert("Tidak ada data ditemukan.");
+
+                    let count = 0;
+                    const updates = {};
+                    
+                    snap.forEach(child => {
+                        const trx = child.val();
+                        // Filter logika: Jika 'Semua' atau lokasi transaksi cocok dengan pilihan
+                        if (cabang === "Semua" || trx.lokasi === cabang) {
+                            updates[child.key] = null;
+                            count++;
+                        }
+                    });
+
+                    if (count === 0) return alert(`Tidak ada data ditemukan untuk cabang ${cabang} di rentang tanggal tersebut.`);
+
+                    db.ref('transaksi').update(updates).then(() => {
+                        alert(`Sukses! ${count} data transaksi dari cabang ${cabang} telah dihapus.`);
+                        location.reload();
+                    });
+                });
+            }
+        }
+
+        // --- LOGIKA UPDATE MASSAL ---
         function downloadMasterStok() {
             const dataToExport = allProduk.map(p => ({
                 ID_UNIK: p.id,
                 NAMA: p.nama,
                 KATEGORI: p.kategori,
-                HARGA: p.harga,
                 STOK_SEKARANG: p.stok
             }));
             const ws = XLSX.utils.json_to_sheet(dataToExport);
@@ -175,18 +226,10 @@
             reader.onload = function(e) {
                 const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
                 const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-                
                 if(confirm(`Update stok untuk ${json.length} produk?`)) {
                     const updates = {};
-                    json.forEach(item => {
-                        if(item.ID_UNIK) {
-                            updates[`/produk/${item.ID_UNIK}/stok`] = parseInt(item.STOK_SEKARANG) || 0;
-                        }
-                    });
-                    db.ref().update(updates).then(() => {
-                        alert("Update Stok Massal Berhasil!");
-                        document.getElementById('fileUpdateStok').value = "";
-                    });
+                    json.forEach(item => { if(item.ID_UNIK) updates[`/produk/${item.ID_UNIK}/stok`] = parseInt(item.STOK_SEKARANG) || 0; });
+                    db.ref().update(updates).then(() => { alert("Berhasil Diupdate!"); });
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -217,7 +260,6 @@
             const totalPage = Math.ceil(allKategori.length / limitKat);
             paginContainer.innerHTML = `<button class="page-btn" onclick="changePageKat(-1)" ${pageKat === 1 ? 'disabled' : ''}>Prev</button><span>${pageKat}/${totalPage||1}</span><button class="page-btn" onclick="changePageKat(1)" ${pageKat === totalPage || totalPage === 0 ? 'disabled' : ''}>Next</button>`;
         }
-
         function changePageKat(dir) { pageKat += dir; renderKategori(); }
         function updateDropdownKategori() {
             let options = '<option value="">Pilih Kategori...</option>';
@@ -267,7 +309,6 @@
             const totalPage = Math.ceil(filtered.length / limitProd);
             paginContainer.innerHTML = `<button class="page-btn" onclick="changePageProd(-1)" ${pageProd === 1 ? 'disabled' : ''}>Prev</button><span>Halaman ${pageProd} dari ${totalPage || 1}</span><button class="page-btn" onclick="changePageProd(1)" ${pageProd === totalPage || totalPage === 0 ? 'disabled' : ''}>Next</button>`;
         }
-
         function changePageProd(dir) { pageProd += dir; renderProduk(); }
 
         function simpanProduk() {
@@ -312,21 +353,6 @@
         }
 
         function hapusProduk(key) { if(confirm("Yakin hapus?")) db.ref('produk/' + key).remove(); }
-
-        function hapusTransaksiRentang() {
-            const start = document.getElementById('delStart').value;
-            const end = document.getElementById('delEnd').value;
-            if (!start || !end) return alert("Pilih rentang tanggal!");
-            if (confirm(`⚠️ HAPUS PERMANEN transaksi ${start} s/d ${end}?`)) {
-                db.ref('transaksi').orderByChild('tanggalMurni').startAt(start).endAt(end).once('value', (snap) => {
-                    if (!snap.exists()) return alert("Data tidak ditemukan.");
-                    const updates = {};
-                    snap.forEach(child => { updates[child.key] = null; });
-                    db.ref('transaksi').update(updates).then(() => { alert("Pembersihan Sukses!"); });
-                });
-            }
-        }
-
         function logout() { auth.signOut().then(() => { localStorage.clear(); window.location.href = "login.html"; }); }
 
         muatKategori();

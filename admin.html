@@ -28,12 +28,13 @@
         .btn-delete { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; }
         
         .danger-zone { border-top: 5px solid #e74c3c; background: #fff5f5; }
-
-        /* Search Box */
         .search-container { margin-bottom: 15px; }
         .search-container input { width: 100%; padding: 10px; border-radius: 20px; border: 1px solid #ddd; padding-left: 20px; box-sizing: border-box; }
-        
         .cat-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #f9f9f9; }
+        
+        /* New Tools Area */
+        .tools-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+        .btn-tool { padding: 10px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 12px; color: white; text-align: center; text-decoration: none; }
     </style>
 </head>
 <body>
@@ -68,9 +69,17 @@
                 <button id="btnCancel" class="btn-cancel" onclick="resetForm()">❌ Batal Edit</button>
                 
                 <hr>
-                <label style="font-weight: bold; font-size: 14px;">📦 Import dari Excel:</label><br><br>
-                <input type="file" id="fileExcel" accept=".xlsx, .xls, .csv" style="font-size: 12px;">
-                <button onclick="importExcel()" style="padding: 10px; background: #34495e; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">📥 Proses Import</button>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+                    <h4 style="margin-top:0;">🚀 Update Stok Massal</h4>
+                    <p style="font-size: 11px; color: #666;">1. Download data produk. 2. Edit stok di Excel. 3. Upload kembali.</p>
+                    <div class="tools-grid">
+                        <button onclick="downloadMasterStok()" class="btn-tool" style="background: #2980b9;">📥 1. Download Data</button>
+                        <label class="btn-tool" style="background: #27ae60; cursor: pointer;">
+                            📤 2. Upload Update
+                            <input type="file" id="fileUpdateStok" accept=".xlsx, .xls" style="display:none;" onchange="importUpdateStok()">
+                        </label>
+                    </div>
+                </div>
             </div>
 
             <div style="flex: 1; min-width: 250px; display: flex; flex-direction: column; gap: 20px;">
@@ -84,7 +93,6 @@
 
                 <div class="form-container danger-zone">
                     <h3>🧹 Bersihkan Data</h3>
-                    <p style="font-size: 12px; color: #c0392b;">Hapus riwayat transaksi secara permanen.</p>
                     <div class="form-group">
                         <label>Dari Tanggal:</label>
                         <input type="date" id="delStart">
@@ -105,7 +113,7 @@
                     <input type="text" id="searchProduk" placeholder="🔍 Cari nama produk..." oninput="renderProduk()">
                 </div>
             </div>
-            <table style="width: 100%; border-collapse: collapse;">
+            <table id="tableMaster" style="width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr><th>Foto</th><th>Nama</th><th>Kategori</th><th>Harga</th><th>Stok</th><th>Aksi</th></tr>
                 </thead>
@@ -145,7 +153,46 @@
             if (!user || role !== "superadmin") { window.location.href = "sales.html"; }
         });
 
-        // 1. KATEGORI
+        // --- MASS UPDATE LOGIC ---
+        function downloadMasterStok() {
+            const dataToExport = allProduk.map(p => ({
+                ID_UNIK: p.id,
+                NAMA: p.nama,
+                KATEGORI: p.kategori,
+                HARGA: p.harga,
+                STOK_SEKARANG: p.stok
+            }));
+            const ws = XLSX.utils.json_to_sheet(dataToExport);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "MasterStok");
+            XLSX.writeFile(wb, "Master_Stok_Hegarsari.xlsx");
+        }
+
+        function importUpdateStok() {
+            const file = document.getElementById('fileUpdateStok').files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
+                const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                
+                if(confirm(`Update stok untuk ${json.length} produk?`)) {
+                    const updates = {};
+                    json.forEach(item => {
+                        if(item.ID_UNIK) {
+                            updates[`/produk/${item.ID_UNIK}/stok`] = parseInt(item.STOK_SEKARANG) || 0;
+                        }
+                    });
+                    db.ref().update(updates).then(() => {
+                        alert("Update Stok Massal Berhasil!");
+                        document.getElementById('fileUpdateStok').value = "";
+                    });
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // --- KATEGORI ---
         function muatKategori() {
             db.ref('kategori_produk').on('value', (snap) => {
                 allKategori = [];
@@ -164,11 +211,9 @@
             const start = (pageKat - 1) * limitKat;
             const end = start + limitKat;
             const displayed = allKategori.slice(start, end);
-
             displayed.forEach(item => {
                 container.innerHTML += `<div class="cat-item"><span>${item.nama}</span><button class="btn-delete" style="padding:2px 6px;" onclick="hapusKategori('${item.id}')">✕</button></div>`;
             });
-
             const totalPage = Math.ceil(allKategori.length / limitKat);
             paginContainer.innerHTML = `<button class="page-btn" onclick="changePageKat(-1)" ${pageKat === 1 ? 'disabled' : ''}>Prev</button><span>${pageKat}/${totalPage||1}</span><button class="page-btn" onclick="changePageKat(1)" ${pageKat === totalPage || totalPage === 0 ? 'disabled' : ''}>Next</button>`;
         }
@@ -186,7 +231,7 @@
         }
         function hapusKategori(id) { if(confirm("Hapus kategori?")) db.ref('kategori_produk/'+id).remove(); }
 
-        // 2. PRODUK
+        // --- PRODUK ---
         function muatProduk() {
             db.ref('produk').on('value', (snap) => {
                 allProduk = [];
@@ -200,14 +245,11 @@
             const keyword = document.getElementById('searchProduk').value.toLowerCase();
             const table = document.getElementById('tabelProduk');
             const paginContainer = document.getElementById('paginationProd');
-            
             let filtered = allProduk.filter(p => p.nama.toLowerCase().includes(keyword));
             filtered.sort((a, b) => a.kategori.localeCompare(b.kategori) || a.nama.localeCompare(b.nama));
-
             const start = (pageProd - 1) * limitProd;
             const end = start + limitProd;
             const displayed = filtered.slice(start, end);
-
             table.innerHTML = "";
             displayed.forEach(p => {
                 table.innerHTML += `<tr>
@@ -222,7 +264,6 @@
                     </td>
                 </tr>`;
             });
-
             const totalPage = Math.ceil(filtered.length / limitProd);
             paginContainer.innerHTML = `<button class="page-btn" onclick="changePageProd(-1)" ${pageProd === 1 ? 'disabled' : ''}>Prev</button><span>Halaman ${pageProd} dari ${totalPage || 1}</span><button class="page-btn" onclick="changePageProd(1)" ${pageProd === totalPage || totalPage === 0 ? 'disabled' : ''}>Next</button>`;
         }
@@ -272,31 +313,6 @@
 
         function hapusProduk(key) { if(confirm("Yakin hapus?")) db.ref('produk/' + key).remove(); }
 
-        // 3. IMPORT EXCEL
-        function importExcel() {
-            const file = document.getElementById('fileExcel').files[0];
-            if(!file) return alert("Pilih file excel!");
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
-                const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-                if(confirm(`Import ${json.length} data?`)) {
-                    json.forEach(item => {
-                        db.ref('produk').push({
-                            nama: item.Nama || item.nama || "No Name",
-                            harga: parseInt(item.Harga || item.harga) || 0,
-                            stok: parseInt(item.Stok || item.stok) || 0,
-                            kategori: item.Kategori || item.kategori || "Umum",
-                            foto: item.Foto || item.foto || ""
-                        });
-                    });
-                    alert("Import Selesai!");
-                }
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        // 4. HAPUS TRANSAKSI (DANGER ZONE)
         function hapusTransaksiRentang() {
             const start = document.getElementById('delStart').value;
             const end = document.getElementById('delEnd').value;

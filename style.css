@@ -1,157 +1,164 @@
+/* ===== GLOBAL STYLE ===== */
 body {
-
     margin: 0;
-
-    font-family: Arial;
-
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     display: flex;
-
-   
-
+    background-color: #f8f9fa;
+    color: #333;
 }
 
-
-
+/* ===== SIDEBAR NAVIGATION ===== */
 .sidebar {
-
-    width: 200px;
-
+    width: 220px;
     background: #2c3e50;
-
     color: white;
-
     height: 100vh;
-
     padding: 20px;
-
+    position: sticky;
+    top: 0;
+    box-sizing: border-box;
+    flex-shrink: 0; /* Mencegah sidebar menyusut */
 }
 
-
+.sidebar h2 {
+    font-size: 20px;
+    margin-bottom: 30px;
+    text-align: center;
+    border-bottom: 1px solid #555;
+    padding-bottom: 10px;
+}
 
 .sidebar a {
-
     display: block;
-
-    color: white;
-
+    color: #bdc3c7;
     text-decoration: none;
-
     margin: 10px 0;
-
-    padding: 8px;
-
-    border-radius: 5px;
-
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: 0.3s;
 }
-
-
 
 .sidebar a:hover {
-
     background: #34495e;
-
+    color: white;
+    padding-left: 20px;
 }
 
-
-
+/* ===== MAIN CONTENT AREA ===== */
 .content {
-
     flex: 1;
-
-    padding: 20px;
-
+    padding: 30px;
+    min-width: 0; /* Fix untuk tabel agar tidak overflow box */
 }
 
-
-
-/* ===== REPORT CARD STYLE ===== */
-
-
-
-.card {
-
-    background: #f4f6f8;
-
-    padding: 20px;
-
-    border-radius: 12px;
-
+h1 {
+    font-size: 24px;
     margin-bottom: 20px;
-
+    color: #2c3e50;
 }
 
-
+/* ===== CARD & TABLE BOX ===== */
+.card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    overflow-x: auto; /* Agar tabel bisa di-scroll jika kepanjangan */
+}
 
 .card h2 {
-
     font-size: 16px;
-
     color: #666;
-
-    margin-bottom: 8px;
-
+    margin-bottom: 15px;
 }
 
-
-
+/* ===== VALUE HIGHLIGHT (Dashboard/Stats) ===== */
 .value {
-
-    font-size: 23px;
-
+    font-size: 28px;
     font-weight: bold;
-
     padding-left: 20px;
-
-    border-left: 4px solid #ddd;
-
-    margin-left: 20px;
-
-   
-
+    border-left: 4px solid #3498db;
+    margin: 15px 0;
+    color: #2c3e50;
 }
 
-
-/* Styling Tombol Umum agar konsisten */
-button {
+/* ===== STANDARISASI TOMBOL ===== */
+button, .btn-tool, .file-label {
     border: none;
-    padding: 8px 16px;
-    border-radius: 6px; /* Sudut membulat yang pas, tidak kaku */
+    padding: 10px 18px;
+    border-radius: 8px;
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease; /* Transisi halus saat diklik/hover */
+    transition: all 0.2s ease;
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    justify-content: center;
+    gap: 8px;
+    text-decoration: none;
 }
 
-/* Tombol Tambah (Warna Hijau/Biru Soft) */
-.btn-add {
-    background-color: #3498db;
-    color: white;
+/* Warna-warna tombol */
+.btn-save, .btn-add, .btn-filter { background-color: #3498db; color: white; }
+.btn-danger, .btn-delete { background-color: #ff7675; color: white; }
+.btn-excel { background-color: #27ae60; color: white; }
+.btn-reset { 
+    background-color: transparent; 
+    border: 1.5px solid #e17055; 
+    color: #e17055; 
 }
 
-/* Tombol Hapus (Merah yang lebih Elegan, bukan merah menyala) */
-.btn-danger {
-    background-color: #ff7675; /* Merah pastel yang nyaman di mata */
-    color: white;
+button:hover, .file-label:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
-/* Tombol Reset (Outline saja agar tidak terlalu dominan) */
-.btn-reset {
-    background-color: transparent;
-    border: 1.5px solid #e17055;
-    color: #e17055;
-}
+button:active { transform: translateY(0); }
 
-/* Efek saat Kursor di atas Tombol */
-button:hover {
-    transform: translateY(-2px); /* Tombol sedikit 'mengapung' */
-    filter: brightness(1.1); /* Warnanya sedikit lebih cerah */
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
+/* ===== MEDIA QUERY UNTUK HP (RESPONSIVE) ===== */
+@media screen and (max-width: 768px) {
+    body {
+        flex-direction: column; /* Sidebar pindah ke atas */
+    }
 
-/* Efek saat Tombol diklik */
-button:active {
-    transform: translateY(0);
+    .sidebar {
+        width: 100%;
+        height: auto;
+        padding: 10px;
+        display: flex;
+        flex-direction: row;
+        overflow-x: auto; /* Menu bisa di-swipe ke samping */
+        white-space: nowrap;
+        position: relative;
+    }
+
+    .sidebar h2 {
+        display: none; /* Sembunyikan judul di navigasi HP */
+    }
+
+    .sidebar a {
+        margin: 0 5px;
+        padding: 10px 15px;
+        font-size: 13px;
+    }
+
+    .content {
+        padding: 15px;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr !important; /* Statistik jadi numpuk ke bawah */
+    }
+
+    h1 {
+        font-size: 20px;
+    }
+
+    /* Penyesuaian form agar tidak sempit */
+    .form-group div {
+        flex-direction: column !important;
+    }
 }

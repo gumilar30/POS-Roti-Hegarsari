@@ -138,10 +138,44 @@
 
         auth.onAuthStateChanged((user) => {
             const role = localStorage.getItem("userRole");
-            if (!user || role !== "superadmin") { window.location.href = "login.html"; }
+            if (!user || role !== "superadmin") { window.location.href = "sales.html"; }
         });
 
-        // --- FIXED DOWNLOAD FUNCTION ---
+        // --- SIMPAN PRODUK DENGAN AUTO-CONVERT LINK GOOGLE DRIVE ---
+        function simpanProduk() {
+            let key = document.getElementById('editKey').value;
+            let fotoUrl = document.getElementById('fotoProduk').value.trim();
+
+            // OTOMATIS KONVERSI LINK GOOGLE DRIVE JIKA TERDETEKSI
+            if (fotoUrl.includes("drive.google.com")) {
+                let fileId = "";
+                if (fotoUrl.includes("id=")) {
+                    fileId = fotoUrl.split("id=")[1].split("&")[0];
+                } else if (fotoUrl.includes("/d/")) {
+                    fileId = fotoUrl.split("/d/")[1].split("/")[0];
+                }
+                if (fileId) {
+                    fotoUrl = `https://drive.google.com/uc?id=${fileId}`;
+                }
+            }
+
+            const data = {
+                nama: document.getElementById('namaProduk').value,
+                harga: parseInt(document.getElementById('hargaProduk').value),
+                stok: parseInt(document.getElementById('stokProduk').value),
+                kategori: document.getElementById('kategoriProduk').value,
+                foto: fotoUrl
+            };
+            
+            if(!data.nama || !data.kategori) return alert("Lengkapi data!");
+            if (!key) key = generateHegarID();
+            
+            db.ref('produk/' + key).set(data).then(() => { 
+                alert("Produk Berhasil Disimpan!"); 
+                resetForm(); 
+            });
+        }
+
         async function downloadMasterStok() {
             try {
                 const snap = await db.ref('produk').once('value');
@@ -162,22 +196,16 @@
             } catch (err) { alert("Gagal download: " + err.message); }
         }
 
-        // --- REVISI MEGA BACKUP (UNTUK AMBIL DATA CUSTOMER JUGA) ---
         async function megaBackup() {
             try {
                 const snap = await db.ref('/').once('value');
                 const data = snap.val();
                 if(!data) return alert("Database kosong!");
-
                 const wb = XLSX.utils.book_new();
-
-                // 1. Sheet Produk
                 if(data.produk) {
                     const prodArr = Object.keys(data.produk).map(id => ({ ID: id, ...data.produk[id] }));
                     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(prodArr), "PRODUK");
                 }
-
-                // 2. Sheet Transaksi (Ini mengandung data Customer Nama & No HP)
                 if(data.transaksi) {
                     const trxArr = Object.keys(data.transaksi).map(id => {
                         const t = data.transaksi[id];
@@ -195,13 +223,11 @@
                     });
                     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(trxArr), "TRANSAKSI_CUSTOMER");
                 }
-
                 XLSX.writeFile(wb, `HEGARSARI_FULL_BACKUP_${new Date().toISOString().split('T')[0]}.xlsx`);
-                alert("Mega Backup Berhasil! Seluruh data produk dan riwayat customer tersimpan.");
+                alert("Mega Backup Berhasil!");
             } catch (e) { alert("Mega Backup Gagal: " + e.message); }
         }
 
-        // --- IMPORT UPDATE ---
         function importUpdateStok() {
             const file = document.getElementById('fileUpdateStok').files[0];
             if(!file) return;
@@ -269,7 +295,7 @@
             table.innerHTML = "";
             filtered.slice((pageProd-1)*limitProd, pageProd*limitProd).forEach(p => {
                 table.innerHTML += `<tr>
-                    <td><img src="${p.foto||'https://via.placeholder.com/40'}" class="img-preview"></td>
+                    <td><img src="${p.foto||'https://via.placeholder.com/40'}" class="img-preview" onerror="this.src='https://via.placeholder.com/45?text=No+Img'"></td>
                     <td><strong style="font-size:15px;">${p.nama}</strong><br><small style="color:#7f8c8d;">ID: ${p.id}</small></td>
                     <td>${p.kategori}</td>
                     <td>Rp ${p.harga.toLocaleString()}</td>
@@ -282,14 +308,6 @@
             document.getElementById('paginationProd').innerHTML = `<button class="page-btn" onclick="changePageProd(-1)" ${pageProd==1?'disabled':''}>Prev</button><span>Halaman ${pageProd} dari ${total||1}</span><button class="page-btn" onclick="changePageProd(1)" ${pageProd==total||total==0?'disabled':''}>Next</button>`;
         }
         function changePageProd(dir) { pageProd += dir; renderProduk(); }
-
-        function simpanProduk() {
-            let key = document.getElementById('editKey').value;
-            const data = { nama: document.getElementById('namaProduk').value, harga: parseInt(document.getElementById('hargaProduk').value), stok: parseInt(document.getElementById('stokProduk').value), kategori: document.getElementById('kategoriProduk').value, foto: document.getElementById('fotoProduk').value };
-            if(!data.nama || !data.kategori) return alert("Lengkapi data!");
-            if (!key) key = generateHegarID();
-            db.ref('produk/' + key).set(data).then(() => { alert("Berhasil!"); resetForm(); });
-        }
 
         function editProduk(key, n, h, s, k, f) {
             document.getElementById('formTitle').innerText = "Mode Edit: " + key;

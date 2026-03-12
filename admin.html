@@ -20,7 +20,7 @@
         .page-btn:disabled { cursor: not-allowed; opacity: 0.5; }
         th { background: #2c3e50; color: white; padding: 12px; text-align: left; }
         td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; vertical-align: middle; }
-        .img-preview { width: 45px; height: 45px; object-fit: cover; border-radius: 5px; }
+        .img-preview { width: 50px; height: 50px; object-fit: cover; border-radius: 5px; border: 1px solid #eee; }
         .btn-edit { background: #f39c12; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; margin-right: 5px; }
         .btn-delete { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; }
         .danger-zone { border-top: 5px solid #e74c3c; background: #fff5f5; padding: 20px; border-radius: 8px; }
@@ -30,6 +30,11 @@
         .tools-grid { display: flex; gap: 10px; margin-top: 15px; }
         .btn-tool { flex: 1; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 13px; color: white; text-align: center; text-decoration: none; display: block; }
         .btn-mega-backup { background: #6c5ce7; color: white; width: 100%; padding: 18px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; margin-bottom: 25px; font-size: 16px; box-shadow: 0 4px 15px rgba(108, 92, 231, 0.4); display: flex; align-items: center; justify-content: center; gap: 10px; }
+        
+        /* Box Upload Baru */
+        .upload-area { border: 2px dashed #3498db; padding: 15px; text-align: center; border-radius: 8px; background: #f0f7ff; cursor: pointer; transition: 0.3s; }
+        .upload-area:hover { background: #e1efff; }
+        #previewUpload { width: 80px; height: 80px; object-fit: cover; border-radius: 5px; display: none; margin: 10px auto; border: 1px solid #ddd; }
     </style>
 </head>
 <body>
@@ -47,12 +52,13 @@
     <div class="content">
         <h1>Admin Panel</h1>
 
-        <button class="btn-mega-backup" onclick="megaBackup()">📂 MEGA BACKUP (3 SHEET: PRODUK, TRX DETAIL, CUSTOMER LOYALTY)</button>
+        <button class="btn-mega-backup" onclick="megaBackup()">📂 MEGA BACKUP (PRODUK, TRX ITEM, CUSTOMER LOYALTY)</button>
 
         <div style="display: flex; gap: 20px; flex-wrap: wrap;">
             <div class="form-container" style="flex: 2; min-width: 300px;">
                 <h3 id="formTitle">Tambah / Edit Produk</h3>
                 <input type="hidden" id="editKey">
+                
                 <div class="form-group"><label>Nama Roti:</label><input type="text" id="namaProduk"></div>
                 <div style="display: flex; gap: 10px;">
                     <div class="form-group" style="flex:1;"><label>Harga (Rp):</label><input type="number" id="hargaProduk"></div>
@@ -62,7 +68,17 @@
                     <label>Kategori:</label>
                     <select id="kategoriProduk"><option value="">Pilih Kategori...</option></select>
                 </div>
-                <div class="form-group"><label>Link Foto (URL):</label><input type="text" id="fotoProduk"></div>
+
+                <div class="form-group">
+                    <label>Foto Produk (Pilih File):</label>
+                    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                        <span id="uploadText">📸 Klik untuk pilih foto</span>
+                        <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="handleFileUpload(this)">
+                        <img id="previewUpload" src="">
+                    </div>
+                    <input type="hidden" id="base64Foto">
+                </div>
+
                 <button id="btnSave" class="btn-save" onclick="simpanProduk()">💾 Simpan Produk</button>
                 <button id="btnCancel" class="btn-cancel" onclick="resetForm()">❌ Batal Edit</button>
                 
@@ -84,9 +100,10 @@
                     <h3>Atur Kategori</h3>
                     <input type="text" id="newKategori" placeholder="Kategori baru..." style="width: 75%; padding: 8px;">
                     <button onclick="tambahKategori()" style="padding: 8px;">➕</button>
-                    <div id="listKategori" style="margin-top: 10px; min-height: 120px;"></div>
+                    <div id="listKategori" style="margin-top: 10px;"></div>
                     <div id="paginationKat" class="pagination"></div>
                 </div>
+                
                 <div class="danger-zone">
                     <h3 style="color: #e74c3c;">🧹 Bersihkan Transaksi</h3>
                     <div class="form-group"><label>Cabang:</label><select id="delCabang"><option value="Semua">Semua Cabang</option></select></div>
@@ -131,7 +148,7 @@
 
         let allKategori = [];
         let pageKat = 1;
-        const limitKat = 3;
+        const limitKat = 5;
         let allProduk = [];
         let pageProd = 1;
         const limitProd = 10;
@@ -141,243 +158,115 @@
             if (!user || role !== "superadmin") { window.location.href = "sales.html"; }
         });
 
-        // --- FUNGSI MEGA BACKUP REVISI (PER SKU & ANALISIS CUSTOMER) ---
+        // --- FUNGSI HANDLE UPLOAD & KOMPRESI ---
+        function handleFileUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.src = e.target.result;
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const maxW = 150;
+                    const scale = maxW / img.width;
+                    canvas.width = maxW;
+                    canvas.height = img.height * scale;
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    const base64 = canvas.toDataURL('image/jpeg', 0.6); // Kompresi agar 10kb-20kb
+                    document.getElementById('base64Foto').value = base64;
+                    document.getElementById('previewUpload').src = base64;
+                    document.getElementById('previewUpload').style.display = 'block';
+                    document.getElementById('uploadText').innerText = "✅ Foto terpilih";
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // --- SIMPAN PRODUK ---
+        function simpanProduk() {
+            let key = document.getElementById('editKey').value;
+            const data = {
+                nama: document.getElementById('namaProduk').value,
+                harga: parseInt(document.getElementById('hargaProduk').value) || 0,
+                stok: parseInt(document.getElementById('stokProduk').value) || 0,
+                kategori: document.getElementById('kategoriProduk').value,
+                foto: document.getElementById('base64Foto').value
+            };
+            if(!data.nama || !data.kategori) return alert("Lengkapi data!");
+            if (!key) key = 'HEGAR-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+            db.ref('produk/' + key).set(data).then(() => { alert("Berhasil!"); resetForm(); });
+        }
+
+        // --- MEGA BACKUP (3 SHEET REVISI) ---
         async function megaBackup() {
             try {
                 const snap = await db.ref('/').once('value');
                 const data = snap.val();
                 if (!data) return alert("Database kosong!");
-
                 const wb = XLSX.utils.book_new();
+                const today = new Date();
 
                 // 1. SHEET PRODUK
                 if (data.produk) {
                     const prodArr = Object.keys(data.produk).map(id => ({
-                        ID: id,
-                        NAMA: data.produk[id].nama,
-                        KATEGORI: data.produk[id].kategori,
-                        HARGA: data.produk[id].harga,
-                        STOK: data.produk[id].stok,
-                        FOTO_URL: data.produk[id].foto
+                        ID: id, NAMA: data.produk[id].nama, KATEGORI: data.produk[id].kategori,
+                        HARGA: data.produk[id].harga, STOK: data.produk[id].stok
                     }));
                     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(prodArr), "PRODUK");
                 }
 
-                // 2. SHEET TRANSAKSI (PECAH PER ITEM / SKU)
+                // 2. SHEET TRANSAKSI (PECAH PER SKU)
                 if (data.transaksi) {
                     let trxDetailArr = [];
                     Object.keys(data.transaksi).forEach(id => {
                         const t = data.transaksi[id];
-                        const listItems = t.items || t.item || [];
-                        
-                        listItems.forEach(i => {
+                        (t.items || t.item || []).forEach(i => {
                             trxDetailArr.push({
-                                ID_TRX: id,
-                                TANGGAL: t.tanggalMurni,
-                                WAKTU: t.waktu,
-                                CABANG: t.lokasi,
-                                CUSTOMER: t.customerName || t.nama || "Anonim",
-                                NO_HP: t.customerPhone || t.customer || "-",
-                                ITEM_BARANG: i.nama,
-                                HARGA_SATUAN: i.harga,
-                                JUMLAH_BELI: i.qty,
-                                SUB_TOTAL_ITEM: i.harga * i.qty,
-                                TOTAL_TRANSAKSI: t.total,
-                                METODE: t.metode
+                                ID_TRX: id, TANGGAL: t.tanggalMurni, WAKTU: t.waktu, CABANG: t.lokasi,
+                                CUSTOMER: t.customerName || t.nama || "Anonim", NO_HP: t.customerPhone || t.customer || "-",
+                                ITEM: i.nama, HARGA: i.harga, QTY: i.qty, SUB: i.harga * i.qty, TOTAL: t.total, METODE: t.metode
                             });
                         });
                     });
                     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(trxDetailArr), "TRANSAKSI");
                 }
 
-                // 3. SHEET CUSTOMER (LOYALITAS - PERSIS CUSTOMER.HTML)
+                // 3. SHEET CUSTOMER (LOYALITAS)
                 if (data.transaksi) {
                     let customers = {};
-                    const today = new Date();
-
                     Object.values(data.transaksi).forEach(trx => {
-                        const phone = trx.customerPhone || trx.customer || "Tanpa No HP";
+                        const phone = trx.customerPhone || trx.customer || "-";
                         const name = trx.customerName || trx.nama || "Pelanggan";
-                        const tgl = trx.tanggalMurni || (trx.waktu ? trx.waktu.split(',')[0] : "-");
-
+                        const tgl = trx.tanggalMurni || "-";
                         if (!customers[phone]) {
-                            customers[phone] = {
-                                NAMA: name,
-                                NO_HP: phone,
-                                ORDER_PERTAMA: tgl,
-                                ORDER_TERAKHIR: tgl,
-                                TOTAL_ORDER: 0,
-                                TOTAL_NOMINAL: 0,
-                                itemMap: {}
-                            };
+                            customers[phone] = { nama: name, phone: phone, count: 0, total: 0, last: tgl };
                         }
-                        
-                        customers[phone].TOTAL_ORDER += 1;
-                        customers[phone].TOTAL_NOMINAL += (trx.total || 0);
-                        if (name !== "Pelanggan" && name !== "Anonim") customers[phone].NAMA = name;
-                        
-                        if (tgl !== "-" ) {
-                            if (customers[phone].ORDER_PERTAMA === "-" || tgl < customers[phone].ORDER_PERTAMA) customers[phone].ORDER_PERTAMA = tgl;
-                            if (customers[phone].ORDER_TERAKHIR === "-" || tgl > customers[phone].ORDER_TERAKHIR) customers[phone].ORDER_TERAKHIR = tgl;
-                        }
-
-                        const items = trx.items || trx.item || [];
-                        items.forEach(i => {
-                            customers[phone].itemMap[i.nama] = (customers[phone].itemMap[i.nama] || 0) + i.qty;
-                        });
+                        customers[phone].count += 1;
+                        customers[phone].total += (trx.total || 0);
+                        if (tgl > customers[phone].last) customers[phone].last = tgl;
                     });
-
-                    const custArr = Object.values(customers).map(c => {
-                        // Hitung Lama Tidak Order
-                        let selisih = "-";
-                        if (c.ORDER_TERAKHIR !== "-") {
-                            const last = new Date(c.ORDER_TERAKHIR);
-                            const diff = Math.floor((today - last) / (1000 * 60 * 60 * 24));
-                            selisih = diff + " Hari";
-                        }
-
-                        // Cari 3 Produk Sering Dipesan
-                        const fav = Object.entries(c.itemMap)
-                            .sort((a,b) => b[1] - a[1])
-                            .slice(0,3)
-                            .map(x => `${x[0]} (${x[1]}pcs)`)
-                            .join("; ");
-
-                        return {
-                            "Nama Customer": c.NAMA,
-                            "No HP": c.NO_HP,
-                            "Order Pertama": c.ORDER_PERTAMA,
-                            "Order Terakhir": c.ORDER_TERAKHIR,
-                            "Lama Tidak Order": selisih,
-                            "Total Order": c.TOTAL_ORDER,
-                            "Total Nominal": c.TOTAL_NOMINAL,
-                            "Rata-rata/Order": Math.round(c.TOTAL_NOMINAL / c.TOTAL_ORDER),
-                            "Produk Sering Dipesan": fav
-                        };
-                    }).sort((a,b) => b["Total Order"] - a["Total Order"]);
-
+                    const custArr = Object.values(customers).map(c => ({
+                        "Nama": c.nama, "HP": c.phone, "Order Terakhir": c.last, "Total Order": c.count, "Total Nominal": c.total
+                    }));
                     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(custArr), "CUSTOMER");
                 }
 
-                XLSX.writeFile(wb, `MEGA_BACKUP_HEGARSARI_${new Date().toISOString().split('T')[0]}.xlsx`);
-                alert("Mega Backup Berhasil! Data Transaksi per SKU & Customer Loyalty tersimpan.");
-            } catch (e) {
-                alert("Gagal: " + e.message);
-            }
+                XLSX.writeFile(wb, `HEGARSARI_MEGA_BACKUP_${today.toISOString().split('T')[0]}.xlsx`);
+            } catch (e) { alert("Gagal!"); }
         }
 
-        // --- SIMPAN PRODUK DENGAN AUTO-CONVERT LINK GOOGLE DRIVE ---
-        function simpanProduk() {
-            let key = document.getElementById('editKey').value;
-            let fotoUrl = document.getElementById('fotoProduk').value.trim();
-
-            if (fotoUrl.includes("drive.google.com")) {
-                let fileId = "";
-                if (fotoUrl.includes("id=")) {
-                    fileId = fotoUrl.split("id=")[1].split("&")[0];
-                } else if (fotoUrl.includes("/d/")) {
-                    fileId = fotoUrl.split("/d/")[1].split("/")[0];
-                }
-                if (fileId) fotoUrl = `https://drive.google.com/uc?id=${fileId}`;
-            }
-
-            const data = {
-                nama: document.getElementById('namaProduk').value,
-                harga: parseInt(document.getElementById('hargaProduk').value),
-                stok: parseInt(document.getElementById('stokProduk').value),
-                kategori: document.getElementById('kategoriProduk').value,
-                foto: fotoUrl
-            };
-            
-            if(!data.nama || !data.kategori) return alert("Lengkapi data!");
-            if (!key) key = generateHegarID();
-            
-            db.ref('produk/' + key).set(data).then(() => { 
-                alert("Produk Berhasil Disimpan!"); 
-                resetForm(); 
-            });
-        }
-
-        async function downloadMasterStok() {
-            try {
-                const snap = await db.ref('produk').once('value');
-                const data = snap.val();
-                if(!data) return alert("Data produk kosong!");
-                const exportData = Object.keys(data).map(id => ({
-                    ID_UNIK: id,
-                    NAMA: data[id].nama,
-                    KATEGORI: data[id].kategori,
-                    HARGA: data[id].harga || 0,
-                    STOK: data[id].stok || 0,
-                    FOTO: data[id].foto || ""
-                }));
-                const ws = XLSX.utils.json_to_sheet(exportData);
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, "Stok");
-                XLSX.writeFile(wb, "Data_Stok_Hegarsari.xlsx");
-            } catch (err) { alert("Gagal download: " + err.message); }
-        }
-
-        function importUpdateStok() {
-            const file = document.getElementById('fileUpdateStok').files[0];
-            if(!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
-                const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-                const updates = {};
-                json.forEach(item => {
-                    const id = item.ID_UNIK || item.ID;
-                    if(id) {
-                        if(item.STOK !== undefined) updates[`/produk/${id}/stok`] = parseInt(item.STOK);
-                        if(item.HARGA !== undefined) updates[`/produk/${id}/harga`] = parseInt(item.HARGA);
-                        if(item.FOTO !== undefined) updates[`/produk/${id}/foto`] = item.FOTO;
-                    }
-                });
-                db.ref().update(updates).then(() => { alert("Update Selesai!"); location.reload(); });
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        function generateHegarID() {
-            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-            let res = ''; for (let i = 0; i < 6; i++) res += chars.charAt(Math.floor(Math.random() * chars.length));
-            return 'HEGAR-' + res;
-        }
-
-        function muatKategori() {
-            db.ref('kategori_produk').on('value', (snap) => {
-                allKategori = []; const data = snap.val() || {};
-                Object.keys(data).forEach(id => allKategori.push({ id, nama: data[id] }));
-                allKategori.reverse(); renderKategori();
-                let opts = '<option value="">Pilih Kategori...</option>';
-                [...allKategori].sort((a,b)=>a.nama.localeCompare(b.nama)).forEach(item => opts += `<option value="${item.nama}">${item.nama}</option>`);
-                document.getElementById('kategoriProduk').innerHTML = opts;
-            });
-        }
-        function renderKategori() {
-            const container = document.getElementById('listKategori');
-            container.innerHTML = "";
-            allKategori.slice((pageKat-1)*limitKat, pageKat*limitKat).forEach(item => {
-                container.innerHTML += `<div class="cat-item"><span>${item.nama}</span><button class="btn-delete" style="padding:2px 6px;" onclick="hapusKategori('${item.id}')">✕</button></div>`;
-            });
-            const total = Math.ceil(allKategori.length / limitKat);
-            document.getElementById('paginationKat').innerHTML = `<button class="page-btn" onclick="changePageKat(-1)" ${pageKat==1?'disabled':''}>Prev</button><span>${pageKat}/${total||1}</span><button class="page-btn" onclick="changePageKat(1)" ${pageKat==total||total==0?'disabled':''}>Next</button>`;
-        }
-        function changePageKat(dir) { pageKat += dir; renderKategori(); }
-        function tambahKategori() {
-            const kat = document.getElementById('newKategori').value.trim();
-            if(kat) db.ref('kategori_produk').push(kat).then(() => { document.getElementById('newKategori').value=""; pageKat=1; });
-        }
-        function hapusKategori(id) { if(confirm("Hapus?")) db.ref('kategori_produk/'+id).remove(); }
-
+        // --- FUNGSI PAGINATION & TABEL PRODUK ---
         function muatProduk() {
-            db.ref('produk').on('value', (snap) => {
-                allProduk = []; const data = snap.val() || {};
-                Object.keys(data).forEach(id => allProduk.push({ id, ...data[id] }));
+            db.ref('produk').on('value', snap => {
+                allProduk = [];
+                snap.forEach(child => { allProduk.push({id: child.key, ...child.val()}); });
                 renderProduk();
             });
         }
+
         function renderProduk() {
             const keyword = document.getElementById('searchProduk').value.toLowerCase();
             const table = document.getElementById('tabelProduk');
@@ -385,26 +274,86 @@
             table.innerHTML = "";
             filtered.slice((pageProd-1)*limitProd, pageProd*limitProd).forEach(p => {
                 table.innerHTML += `<tr>
-                    <td><img src="${p.foto||'https://via.placeholder.com/40'}" class="img-preview" onerror="this.src='https://via.placeholder.com/45?text=No+Img'"></td>
-                    <td><strong style="font-size:15px;">${p.nama}</strong><br><small style="color:#7f8c8d;">ID: ${p.id}</small></td>
+                    <td><img src="${p.foto || ''}" class="img-preview" onerror="this.src='https://via.placeholder.com/50?text=No+Img'"></td>
+                    <td><strong>${p.nama}</strong><br><small>${p.id}</small></td>
                     <td>${p.kategori}</td>
                     <td>Rp ${p.harga.toLocaleString()}</td>
                     <td><strong style="color:${p.stok<=5?'red':'black'}">${p.stok}</strong></td>
-                    <td><button class="btn-edit" onclick="editProduk('${p.id}','${p.nama}',${p.harga},${p.stok},'${p.kategori}','${p.foto}')">Edit</button>
-                        <button class="btn-delete" onclick="hapusProduk('${p.id}')">Hapus</button></td>
+                    <td><button class="btn-edit" onclick="editProduk('${p.id}','${p.nama}',${p.harga},${p.stok},'${p.kategori}','${p.foto||''}')">Edit</button>
+                        <button class="btn-delete" onclick="if(confirm('Hapus?')) db.ref('produk/${p.id}').remove()">Hapus</button></td>
                 </tr>`;
             });
             const total = Math.ceil(filtered.length / limitProd);
-            document.getElementById('paginationProd').innerHTML = `<button class="page-btn" onclick="changePageProd(-1)" ${pageProd==1?'disabled':''}>Prev</button><span>Halaman ${pageProd} dari ${total||1}</span><button class="page-btn" onclick="changePageProd(1)" ${pageProd==total||total==0?'disabled':''}>Next</button>`;
+            document.getElementById('paginationProd').innerHTML = `<button class="page-btn" onclick="changePageProd(-1)" ${pageProd==1?'disabled':''}>Prev</button><span>${pageProd}/${total||1}</span><button class="page-btn" onclick="changePageProd(1)" ${pageProd==total||total==0?'disabled':''}>Next</button>`;
         }
         function changePageProd(dir) { pageProd += dir; renderProduk(); }
+
+        // --- FUNGSI KATEGORI & LAINNYA ---
+        function muatKategori() {
+            db.ref('kategori_produk').on('value', (snap) => {
+                allKategori = []; const data = snap.val() || {};
+                Object.keys(data).forEach(id => allKategori.push({ id, nama: data[id] }));
+                renderKategori();
+                let opts = '<option value="">Pilih Kategori...</option>';
+                allKategori.forEach(item => opts += `<option value="${item.nama}">${item.nama}</option>`);
+                document.getElementById('kategoriProduk').innerHTML = opts;
+            });
+        }
+        function renderKategori() {
+            const container = document.getElementById('listKategori');
+            container.innerHTML = "";
+            allKategori.slice((pageKat-1)*limitKat, pageKat*limitKat).forEach(item => {
+                container.innerHTML += `<div class="cat-item"><span>${item.nama}</span><button class="btn-delete" style="padding:2px 6px;" onclick="if(confirm('Hapus kategori?')) db.ref('kategori_produk/'+'${item.id}').remove()">✕</button></div>`;
+            });
+            const total = Math.ceil(allKategori.length / limitKat);
+            document.getElementById('paginationKat').innerHTML = `<button class="page-btn" onclick="changePageKat(-1)" ${pageKat==1?'disabled':''}>Prev</button><span>${pageKat}/${total||1}</span><button class="page-btn" onclick="changePageKat(1)" ${pageKat==total||total==0?'disabled':''}>Next</button>`;
+        }
+        function changePageKat(dir) { pageKat += dir; renderKategori(); }
+        function tambahKategori() {
+            const kat = document.getElementById('newKategori').value.trim();
+            if(kat) db.ref('kategori_produk').push(kat).then(() => { document.getElementById('newKategori').value=""; });
+        }
+
+        function downloadMasterStok() {
+            const exportData = allProduk.map(p => ({ ID_UNIK: p.id, NAMA: p.nama, KATEGORI: p.kategori, HARGA: p.harga, STOK: p.stok }));
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Stok");
+            XLSX.writeFile(wb, "Master_Stok.xlsx");
+        }
+
+        function importUpdateStok() {
+            const file = document.getElementById('fileUpdateStok').files[0];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
+                const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                const updates = {};
+                json.forEach(item => {
+                    if(item.ID_UNIK) {
+                        if(item.STOK !== undefined) updates[`/produk/${item.ID_UNIK}/stok`] = parseInt(item.STOK);
+                        if(item.HARGA !== undefined) updates[`/produk/${item.ID_UNIK}/harga`] = parseInt(item.HARGA);
+                    }
+                });
+                db.ref().update(updates).then(() => { alert("Sukses!"); location.reload(); });
+            };
+            reader.readAsArrayBuffer(file);
+        }
 
         function editProduk(key, n, h, s, k, f) {
             document.getElementById('formTitle').innerText = "Mode Edit: " + key;
             document.getElementById('editKey').value = key;
-            document.getElementById('namaProduk').value = n; document.getElementById('hargaProduk').value = h;
-            document.getElementById('stokProduk').value = s; document.getElementById('kategoriProduk').value = k;
-            document.getElementById('fotoProduk').value = f;
+            document.getElementById('namaProduk').value = n; 
+            document.getElementById('hargaProduk').value = h;
+            document.getElementById('stokProduk').value = s; 
+            document.getElementById('kategoriProduk').value = k;
+            document.getElementById('base64Foto').value = f || "";
+            if(f) {
+                document.getElementById('previewUpload').src = f;
+                document.getElementById('previewUpload').style.display = 'block';
+            } else {
+                document.getElementById('previewUpload').style.display = 'none';
+            }
             document.getElementById('btnSave').innerText = "Update Produk";
             document.getElementById('btnSave').classList.add('btn-update');
             document.getElementById('btnCancel').style.display = "block";
@@ -412,33 +361,42 @@
         }
 
         function resetForm() {
-            document.getElementById('editKey').value = ""; document.getElementById('namaProduk').value = "";
-            document.getElementById('hargaProduk').value = ""; document.getElementById('stokProduk').value = "";
-            document.getElementById('kategoriProduk').value = ""; document.getElementById('fotoProduk').value = "";
+            document.getElementById('editKey').value = ""; 
+            document.getElementById('namaProduk').value = "";
+            document.getElementById('hargaProduk').value = ""; 
+            document.getElementById('stokProduk').value = "";
+            document.getElementById('base64Foto').value = "";
+            document.getElementById('previewUpload').style.display = 'none';
+            document.getElementById('uploadText').innerText = "📸 Klik untuk pilih foto";
             document.getElementById('formTitle').innerText = "Tambah / Edit Produk";
             document.getElementById('btnSave').innerText = "💾 Simpan Produk";
             document.getElementById('btnSave').classList.remove('btn-update');
             document.getElementById('btnCancel').style.display = "none";
         }
 
-        function hapusProduk(key) { if(confirm("Yakin hapus?")) db.ref('produk/' + key).remove(); }
         async function hapusTransaksiRentang() {
             const cabang = document.getElementById('delCabang').value;
             const start = document.getElementById('delStart').value;
             const end = document.getElementById('delEnd').value;
             if (!start || !end) return alert("Pilih tanggal!");
             if (confirm(`Hapus transaksi ${cabang} periode ${start} s/d ${end}?`)) {
-                const ref = db.ref('transaksi');
-                const snap = await ref.orderByChild('tanggalMurni').startAt(start).endAt(end).once('value');
+                const snap = await db.ref('transaksi').orderByChild('tanggalMurni').startAt(start).endAt(end).once('value');
                 if (!snap.exists()) return alert("Data tidak ditemukan.");
                 const updates = {};
                 snap.forEach(child => { if (cabang === "Semua" || child.val().lokasi === cabang) updates[child.key] = null; });
-                ref.update(updates).then(() => { alert("Pembersihan Sukses!"); location.reload(); });
+                db.ref('transaksi').update(updates).then(() => { alert("Bersih!"); location.reload(); });
             }
         }
+
         function logout() { auth.signOut().then(() => { localStorage.clear(); window.location.href = "login.html"; }); }
-        db.ref('cabang/').once('value', s => s.forEach(c => { let o=document.createElement('option'); o.value=c.val(); o.innerText=c.val(); document.getElementById('delCabang').appendChild(o); }));
-        muatKategori(); muatProduk();
+        
+        // Load Awal
+        db.ref('cabang/').once('value', s => s.forEach(c => { 
+            let o=document.createElement('option'); o.value=c.val(); o.innerText=c.val(); 
+            document.getElementById('delCabang').appendChild(o); 
+        }));
+        muatKategori(); 
+        muatProduk();
     </script>
 </body>
 </html>

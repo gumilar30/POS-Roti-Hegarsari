@@ -12,11 +12,14 @@
         .form-group label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
         .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
         .btn-save { background: #27ae60; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 10px; }
-        .btn-import { background: #f39c12; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .btn-update { background: #f39c12 !important; } /* Warna Oranye untuk Edit */
+        .btn-cancel { background: #95a5a6; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 10px; display: none; }
+        .btn-import { background: #34495e; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; }
         .btn-kat { background: #3498db; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-top: 5px; }
         th { background: #2c3e50; color: white; padding: 12px; text-align: left; }
-        td { padding: 12px; border-bottom: 1px solid #eee; }
+        td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; }
         .img-preview { width: 50px; height: 50px; object-fit: cover; border-radius: 5px; }
+        .btn-edit { background: #f39c12; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; margin-right: 5px; }
         .btn-delete { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; }
         .danger-zone { border-top: 5px solid #e74c3c; background: #fff5f5; }
     </style>
@@ -37,8 +40,8 @@
 
         <div style="display: flex; gap: 20px; flex-wrap: wrap;">
             <div class="form-container" style="flex: 2; min-width: 300px;">
-                <h3>Tambah / Edit Produk</h3>
-                <div class="form-group">
+                <h3 id="formTitle">Tambah Produk Baru</h3>
+                <input type="hidden" id="editKey"> <div class="form-group">
                     <label>Nama Roti:</label>
                     <input type="text" id="namaProduk" placeholder="Contoh: Bolen Lilit">
                 </div>
@@ -60,7 +63,9 @@
                     <label>Link Foto (URL):</label>
                     <input type="text" id="fotoProduk" placeholder="https://...">
                 </div>
-                <button class="btn-save" onclick="simpanProduk()">💾 Simpan Produk</button>
+                
+                <button id="btnSave" class="btn-save" onclick="simpanProduk()">💾 Simpan Produk</button>
+                <button id="btnCancel" class="btn-cancel" onclick="resetForm()">❌ Batal Edit</button>
                 
                 <hr>
                 <label style="font-weight: bold; font-size: 14px;">📦 Import Massal (Excel):</label><br><br>
@@ -129,13 +134,11 @@
         const db = firebase.database();
         const auth = firebase.auth();
 
-        // GEMBOK SUPER ADMIN
         auth.onAuthStateChanged((user) => {
             const role = localStorage.getItem("userRole");
             if (!user || role !== "superadmin") { window.location.href = "sales.html"; }
         });
 
-        // 1. MANAJEMEN KATEGORI DINAMIS
         function muatKategori() {
             db.ref('kategori_produk').on('value', (snap) => {
                 const data = snap.val() || {};
@@ -143,7 +146,7 @@
                 let list = '';
                 Object.keys(data).forEach(id => {
                     options += `<option value="${data[id]}">${data[id]}</option>`;
-                    list += `<li style="margin-bottom:5px;">${data[id]} <button onclick="hapusKategori('${id}')" style="background:none; border:none; color:red; cursor:pointer; font-weight:bold;">[x]</button></li>`;
+                    list += `<li style="margin-bottom:5px;">${data[id]} <button onclick="hapusKategori('${id}')" style="background:none; border:none; color:red; cursor:pointer;">[x]</button></li>`;
                 });
                 document.getElementById('kategoriProduk').innerHTML = options;
                 document.getElementById('listKategori').innerHTML = list;
@@ -153,17 +156,15 @@
         function tambahKategori() {
             const kat = document.getElementById('newKategori').value.trim();
             if(!kat) return;
-            db.ref('kategori_produk').push(kat).then(() => {
-                document.getElementById('newKategori').value = "";
-            });
+            db.ref('kategori_produk').push(kat).then(() => { document.getElementById('newKategori').value = ""; });
         }
 
         function hapusKategori(id) {
             if(confirm("Hapus kategori ini?")) db.ref('kategori_produk/'+id).remove();
         }
 
-        // 2. SIMPAN PRODUK MANUAL
         function simpanProduk() {
+            const key = document.getElementById('editKey').value;
             const nama = document.getElementById('namaProduk').value;
             const harga = parseInt(document.getElementById('hargaProduk').value);
             const stok = parseInt(document.getElementById('stokProduk').value);
@@ -172,34 +173,61 @@
 
             if(!nama || !harga || !kategori) return alert("Nama, Harga, dan Kategori wajib diisi!");
 
-            db.ref('produk').push({
-                nama, harga, stok, kategori, foto: foto || ""
-            }).then(() => {
-                alert("Produk Berhasil Disimpan!");
-                document.getElementById('namaProduk').value = "";
-                document.getElementById('hargaProduk').value = "";
-                document.getElementById('stokProduk').value = "";
-                document.getElementById('fotoProduk').value = "";
-            });
+            const dataProduk = { nama, harga, stok, kategori, foto: foto || "" };
+
+            if (key) {
+                db.ref('produk/' + key).update(dataProduk).then(() => {
+                    alert("Produk Berhasil Diperbarui!");
+                    resetForm();
+                });
+            } else {
+                db.ref('produk').push(dataProduk).then(() => {
+                    alert("Produk Berhasil Ditambahkan!");
+                    resetForm();
+                });
+            }
         }
 
-        // 3. IMPORT EXCEL
+        function editProduk(key, nama, harga, stok, kategori, foto) {
+            document.getElementById('formTitle').innerText = "Mode Edit: " + nama;
+            document.getElementById('editKey').value = key;
+            document.getElementById('namaProduk').value = nama;
+            document.getElementById('hargaProduk').value = harga;
+            document.getElementById('stokProduk').value = stok;
+            document.getElementById('kategoriProduk').value = kategori;
+            document.getElementById('fotoProduk').value = foto;
+
+            document.getElementById('btnSave').innerText = "Update Produk";
+            document.getElementById('btnSave').classList.add('btn-update');
+            document.getElementById('btnCancel').style.display = "block";
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function resetForm() {
+            document.getElementById('formTitle').innerText = "Tambah Produk Baru";
+            document.getElementById('editKey').value = "";
+            document.getElementById('namaProduk').value = "";
+            document.getElementById('hargaProduk').value = "";
+            document.getElementById('stokProduk').value = "";
+            document.getElementById('kategoriProduk').value = "";
+            document.getElementById('fotoProduk').value = "";
+            document.getElementById('btnSave').innerText = "💾 Simpan Produk";
+            document.getElementById('btnSave').classList.remove('btn-update');
+            document.getElementById('btnCancel').style.display = "none";
+        }
+
         function importExcel() {
             const file = document.getElementById('fileExcel').files[0];
-            if(!file) return alert("Pilih file excel dulu!");
-
+            if(!file) return alert("Pilih file excel!");
             const reader = new FileReader();
             reader.onload = function(e) {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, {type: 'array'});
-                const sheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[sheetName];
-                const json = XLSX.utils.sheet_to_json(worksheet);
-
-                if(confirm(`Import ${json.length} data produk?`)) {
+                const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                if(confirm(`Import ${json.length} data?`)) {
                     json.forEach(item => {
                         db.ref('produk').push({
-                            nama: item.Nama || item.nama || "Tanpa Nama",
+                            nama: item.Nama || item.nama || "No Name",
                             harga: parseInt(item.Harga || item.harga) || 0,
                             stok: parseInt(item.Stok || item.stok) || 0,
                             kategori: item.Kategori || item.kategori || "Umum",
@@ -212,35 +240,20 @@
             reader.readAsArrayBuffer(file);
         }
 
-        // 4. MAINTENANCE: HAPUS TRANSAKSI RENTANG TANGGAL
         function hapusTransaksiRentang() {
             const start = document.getElementById('delStart').value;
             const end = document.getElementById('delEnd').value;
-
-            if (!start || !end) return alert("Pilih rentang tanggal pembersihan!");
-
-            if (confirm(`⚠️ PERINGATAN KERAS!\nSemua riwayat transaksi dari ${start} sampai ${end} akan DIHAPUS PERMANEN dari database.\n\nLanjutkan?`)) {
-                
-                const ref = db.ref('transaksi');
-                ref.orderByChild('tanggalMurni').startAt(start).endAt(end).once('value', (snap) => {
-                    if (!snap.exists()) return alert("Tidak ada data transaksi di tanggal tersebut.");
-
-                    let count = 0;
+            if (!start || !end) return alert("Pilih tanggal!");
+            if (confirm(`HAPUS PERMANEN transaksi ${start} s/d ${end}?`)) {
+                db.ref('transaksi').orderByChild('tanggalMurni').startAt(start).endAt(end).once('value', (snap) => {
+                    if (!snap.exists()) return alert("Data tidak ditemukan.");
                     const updates = {};
-                    snap.forEach((child) => {
-                        updates[child.key] = null;
-                        count++;
-                    });
-
-                    ref.update(updates).then(() => {
-                        alert(`Sukses! ${count} riwayat transaksi telah dibersihkan.`);
-                        location.reload();
-                    });
+                    snap.forEach(child => { updates[child.key] = null; });
+                    db.ref('transaksi').update(updates).then(() => { alert("Pembersihan Sukses!"); });
                 });
             }
         }
 
-        // 5. TAMPILKAN TABEL PRODUK
         db.ref('produk/').on('value', (snap) => {
             const data = snap.val();
             let html = "";
@@ -252,20 +265,17 @@
                     <td>${p.kategori}</td>
                     <td>Rp ${p.harga.toLocaleString()}</td>
                     <td><strong>${p.stok}</strong></td>
-                    <td><button class="btn-delete" onclick="hapusProduk('${key}')">Hapus</button></td>
+                    <td>
+                        <button class="btn-edit" onclick="editProduk('${key}', '${p.nama}', ${p.harga}, ${p.stok}, '${p.kategori}', '${p.foto}')">Edit</button>
+                        <button class="btn-delete" onclick="hapusProduk('${key}')">Hapus</button>
+                    </td>
                 </tr>`;
             }
             document.getElementById('tabelProduk').innerHTML = html || "<tr><td colspan='6' align='center'>Belum ada produk.</td></tr>";
         });
 
-        function hapusProduk(key) {
-            if(confirm("Yakin hapus produk ini?")) db.ref('produk/' + key).remove();
-        }
-
-        function logout() {
-            auth.signOut().then(() => { localStorage.clear(); window.location.href = "login.html"; });
-        }
-
+        function hapusProduk(key) { if(confirm("Yakin hapus?")) db.ref('produk/' + key).remove(); }
+        function logout() { auth.signOut().then(() => { localStorage.clear(); window.location.href = "login.html"; }); }
         muatKategori();
     </script>
 </body>

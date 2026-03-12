@@ -14,25 +14,22 @@
         .btn-save { background: #27ae60; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 10px; }
         .btn-update { background: #f39c12 !important; }
         .btn-cancel { background: #95a5a6; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 10px; display: none; }
-        
         .pagination { display: flex; gap: 5px; margin-top: 10px; justify-content: center; align-items: center; }
         .page-btn { padding: 5px 10px; border: 1px solid #ddd; background: white; cursor: pointer; border-radius: 4px; font-size: 12px; }
         .page-btn.active { background: #3498db; color: white; border-color: #3498db; }
         .page-btn:disabled { cursor: not-allowed; opacity: 0.5; }
-
         th { background: #2c3e50; color: white; padding: 12px; text-align: left; }
         td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; }
         .img-preview { width: 40px; height: 40px; object-fit: cover; border-radius: 5px; }
-        .btn-edit { background: #f39c12; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; }
+        .btn-edit { background: #f39c12; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; margin-right: 5px; }
         .btn-delete { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; }
-        
-        .danger-zone { border-top: 5px solid #e74c3c; background: #fff5f5; }
+        .danger-zone { border-top: 5px solid #e74c3c; background: #fff5f5; padding: 20px; border-radius: 8px; }
         .search-container { margin-bottom: 15px; }
         .search-container input { width: 100%; padding: 10px; border-radius: 20px; border: 1px solid #ddd; padding-left: 20px; box-sizing: border-box; }
         .cat-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #f9f9f9; }
-        
         .tools-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
         .btn-tool { padding: 10px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 12px; color: white; text-align: center; text-decoration: none; }
+        .btn-mega-backup { background: #6c5ce7; color: white; width: 100%; padding: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-bottom: 20px; font-size: 16px; box-shadow: 0 4px 6px rgba(108, 92, 231, 0.3); }
     </style>
 </head>
 <body>
@@ -48,6 +45,8 @@
 
     <div class="content">
         <h1>Admin Panel</h1>
+
+        <button class="btn-mega-backup" onclick="megaBackup()">📂 BACKUP SELURUH DATA (ASURANSI)</button>
 
         <div style="display: flex; gap: 20px; flex-wrap: wrap;">
             <div class="form-container" style="flex: 2; min-width: 300px;">
@@ -88,25 +87,17 @@
                     <div id="paginationKat" class="pagination"></div>
                 </div>
 
-                <div class="form-container danger-zone">
-                    <h3>🧹 Bersihkan Data Penjualan</h3>
+                <div class="danger-zone">
+                    <h3 style="color: #e74c3c;">🧹 Bersihkan Transaksi</h3>
                     <div class="form-group">
-                        <label>Pilih Lokasi Cabang:</label>
-                        <select id="delCabang">
-                            <option value="Semua">Semua Cabang</option>
-                            </select>
+                        <label>Cabang:</label>
+                        <select id="delCabang"><option value="Semua">Semua Cabang</option></select>
                     </div>
                     <div style="display: flex; gap: 5px;">
-                        <div class="form-group" style="flex:1;">
-                            <label>Dari:</label>
-                            <input type="date" id="delStart">
-                        </div>
-                        <div class="form-group" style="flex:1;">
-                            <label>Sampai:</label>
-                            <input type="date" id="delEnd">
-                        </div>
+                        <div class="form-group" style="flex:1;"><label>Dari:</label><input type="date" id="delStart"></div>
+                        <div class="form-group" style="flex:1;"><label>Sampai:</label><input type="date" id="delEnd"></div>
                     </div>
-                    <button class="btn-delete" style="width: 100%; padding: 12px; font-size: 14px;" onclick="hapusTransaksiRentang()">Hapus Permanen</button>
+                    <button class="btn-delete" style="width: 100%; padding: 12px; font-weight: bold;" onclick="hapusTransaksiRentang()">Hapus Permanen</button>
                 </div>
             </div>
         </div>
@@ -148,7 +139,6 @@
         let allKategori = [];
         let pageKat = 1;
         const limitKat = 3;
-
         let allProduk = [];
         let pageProd = 1;
         const limitProd = 10;
@@ -158,205 +148,152 @@
             if (!user || role !== "superadmin") { window.location.href = "sales.html"; }
         });
 
-        // MUAT DAFTAR CABANG UNTUK DROPDOWN HAPUS
-        db.ref('cabang/').once('value', (snap) => {
-            const selectDel = document.getElementById('delCabang');
-            snap.forEach(child => {
-                let opt = document.createElement('option');
-                opt.value = child.val();
-                opt.innerText = child.val();
-                selectDel.appendChild(opt);
-            });
-        });
+        // --- FUNGSI MEGA BACKUP ---
+        async function megaBackup() {
+            try {
+                const snap = await db.ref('/').once('value');
+                const data = snap.val();
 
-        // --- HAPUS DATA DENGAN FILTER CABANG ---
-        function hapusTransaksiRentang() {
+                const wb = XLSX.utils.book_new();
+
+                // 1. Sheet Produk
+                const prodData = Object.keys(data.produk || {}).map(id => ({ ID: id, ...data.produk[id] }));
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(prodData), "PRODUK");
+
+                // 2. Sheet Transaksi
+                const trxData = Object.keys(data.transaksi || {}).map(id => {
+                    const t = data.transaksi[id];
+                    return { 
+                        ID_TRX: id, 
+                        WAKTU: t.waktu, 
+                        LOKASI: t.lokasi, 
+                        TOTAL: t.total, 
+                        METODE: t.metode,
+                        CUSTOMER: t.customer
+                    };
+                });
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(trxData), "TRANSAKSI");
+
+                // 3. Sheet Kategori & Cabang
+                const katData = Object.keys(data.kategori_produk || {}).map(id => ({ NAMA_KATEGORI: data.kategori_produk[id] }));
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(katData), "KATEGORI");
+
+                const cabData = Object.keys(data.cabang || {}).map(id => ({ NAMA_CABANG: data.cabang[id] }));
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(cabData), "CABANG");
+
+                const fileName = `MEGA_BACKUP_HEGARSARI_${new Date().toISOString().split('T')[0]}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+                alert("Mega Backup Berhasil! Simpan file ini baik-baik.");
+            } catch (err) {
+                alert("Gagal melakukan backup: " + err.message);
+            }
+        }
+
+        // --- FUNGSI HAPUS TRANSAKSI AMAN ---
+        async function hapusTransaksiRentang() {
             const cabang = document.getElementById('delCabang').value;
             const start = document.getElementById('delStart').value;
             const end = document.getElementById('delEnd').value;
-
-            if (!start || !end) return alert("Pilih rentang tanggal!");
-
-            const confirmMsg = `⚠️ PERINGATAN!\nLokasi: ${cabang}\nRentang: ${start} s/d ${end}\n\nData akan DIHAPUS PERMANEN. Lanjutkan?`;
-            
-            if (confirm(confirmMsg)) {
-                db.ref('transaksi').orderByChild('tanggalMurni').startAt(start).endAt(end).once('value', (snap) => {
-                    if (!snap.exists()) return alert("Tidak ada data ditemukan.");
-
-                    let count = 0;
-                    const updates = {};
-                    
-                    snap.forEach(child => {
-                        const trx = child.val();
-                        // Filter logika: Jika 'Semua' atau lokasi transaksi cocok dengan pilihan
-                        if (cabang === "Semua" || trx.lokasi === cabang) {
-                            updates[child.key] = null;
-                            count++;
-                        }
-                    });
-
-                    if (count === 0) return alert(`Tidak ada data ditemukan untuk cabang ${cabang} di rentang tanggal tersebut.`);
-
-                    db.ref('transaksi').update(updates).then(() => {
-                        alert(`Sukses! ${count} data transaksi dari cabang ${cabang} telah dihapus.`);
-                        location.reload();
-                    });
+            if (!start || !end) return alert("Pilih tanggal!");
+            if (confirm(`Hapus transaksi ${cabang} periode ${start} s/d ${end}?`)) {
+                const ref = db.ref('transaksi');
+                const snap = await ref.orderByChild('tanggalMurni').startAt(start).endAt(end).once('value');
+                if (!snap.exists()) return alert("Data tidak ditemukan.");
+                const updates = {};
+                snap.forEach(child => {
+                    if (cabang === "Semua" || child.val().lokasi === cabang) updates[child.key] = null;
                 });
+                ref.update(updates).then(() => { alert("Pembersihan Sukses!"); location.reload(); });
             }
         }
 
         // --- LOGIKA UPDATE MASSAL ---
         function downloadMasterStok() {
-            const dataToExport = allProduk.map(p => ({
-                ID_UNIK: p.id,
-                NAMA: p.nama,
-                KATEGORI: p.kategori,
-                STOK_SEKARANG: p.stok
-            }));
-            const ws = XLSX.utils.json_to_sheet(dataToExport);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "MasterStok");
-            XLSX.writeFile(wb, "Master_Stok_Hegarsari.xlsx");
+            const dataToExport = allProduk.map(p => ({ ID_UNIK: p.id, NAMA: p.nama, KATEGORI: p.kategori, STOK: p.stok }));
+            XLSX.writeFile(XLSX.utils.book_append_sheet(XLSX.utils.book_new(), XLSX.utils.json_to_sheet(dataToExport), "Stok"), "Master_Stok.xlsx");
         }
 
         function importUpdateStok() {
             const file = document.getElementById('fileUpdateStok').files[0];
-            if(!file) return;
             const reader = new FileReader();
             reader.onload = function(e) {
-                const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
-                const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-                if(confirm(`Update stok untuk ${json.length} produk?`)) {
-                    const updates = {};
-                    json.forEach(item => { if(item.ID_UNIK) updates[`/produk/${item.ID_UNIK}/stok`] = parseInt(item.STOK_SEKARANG) || 0; });
-                    db.ref().update(updates).then(() => { alert("Berhasil Diupdate!"); });
-                }
+                const json = XLSX.utils.sheet_to_json(XLSX.read(new Uint8Array(e.target.result), {type: 'array'}).Sheets["Stok"]);
+                const updates = {};
+                json.forEach(item => { if(item.ID_UNIK) updates[`/produk/${item.ID_UNIK}/stok`] = parseInt(item.STOK) || 0; });
+                db.ref().update(updates).then(() => { alert("Update Selesai!"); });
             };
             reader.readAsArrayBuffer(file);
         }
 
-        // --- KATEGORI ---
+        // --- LOGIKA KATEGORI ---
         function muatKategori() {
             db.ref('kategori_produk').on('value', (snap) => {
-                allKategori = [];
-                const data = snap.val() || {};
+                allKategori = []; const data = snap.val() || {};
                 Object.keys(data).forEach(id => { allKategori.push({ id, nama: data[id] }); });
-                allKategori.reverse();
-                renderKategori();
-                updateDropdownKategori();
+                allKategori.reverse(); renderKategori();
+                let opts = '<option value="">Pilih Kategori...</option>';
+                [...allKategori].sort((a,b)=>a.nama.localeCompare(b.nama)).forEach(item => opts += `<option value="${item.nama}">${item.nama}</option>`);
+                document.getElementById('kategoriProduk').innerHTML = opts;
             });
         }
-
         function renderKategori() {
             const container = document.getElementById('listKategori');
-            const paginContainer = document.getElementById('paginationKat');
             container.innerHTML = "";
-            const start = (pageKat - 1) * limitKat;
-            const end = start + limitKat;
-            const displayed = allKategori.slice(start, end);
-            displayed.forEach(item => {
+            allKategori.slice((pageKat-1)*limitKat, pageKat*limitKat).forEach(item => {
                 container.innerHTML += `<div class="cat-item"><span>${item.nama}</span><button class="btn-delete" style="padding:2px 6px;" onclick="hapusKategori('${item.id}')">✕</button></div>`;
             });
-            const totalPage = Math.ceil(allKategori.length / limitKat);
-            paginContainer.innerHTML = `<button class="page-btn" onclick="changePageKat(-1)" ${pageKat === 1 ? 'disabled' : ''}>Prev</button><span>${pageKat}/${totalPage||1}</span><button class="page-btn" onclick="changePageKat(1)" ${pageKat === totalPage || totalPage === 0 ? 'disabled' : ''}>Next</button>`;
+            const total = Math.ceil(allKategori.length/limitKat);
+            document.getElementById('paginationKat').innerHTML = `<button class="page-btn" onclick="changePageKat(-1)" ${pageKat==1?'disabled':''}>Prev</button><span>${pageKat}/${total||1}</span><button class="page-btn" onclick="changePageKat(1)" ${pageKat==total||total==0?'disabled':''}>Next</button>`;
         }
         function changePageKat(dir) { pageKat += dir; renderKategori(); }
-        function updateDropdownKategori() {
-            let options = '<option value="">Pilih Kategori...</option>';
-            [...allKategori].sort((a,b) => a.nama.localeCompare(b.nama)).forEach(item => { options += `<option value="${item.nama}">${item.nama}</option>`; });
-            document.getElementById('kategoriProduk').innerHTML = options;
-        }
         function tambahKategori() {
             const kat = document.getElementById('newKategori').value.trim();
-            if(!kat) return;
-            db.ref('kategori_produk').push(kat).then(() => { document.getElementById('newKategori').value = ""; pageKat = 1; });
+            if(kat) db.ref('kategori_produk').push(kat).then(() => { document.getElementById('newKategori').value=""; pageKat=1; });
         }
-        function hapusKategori(id) { if(confirm("Hapus kategori?")) db.ref('kategori_produk/'+id).remove(); }
+        function hapusKategori(id) { if(confirm("Hapus?")) db.ref('kategori_produk/'+id).remove(); }
 
-        // --- PRODUK ---
+        // --- LOGIKA PRODUK ---
         function muatProduk() {
             db.ref('produk').on('value', (snap) => {
-                allProduk = [];
-                const data = snap.val() || {};
-                Object.keys(data).forEach(id => { allProduk.push({ id, ...data[id] }); });
+                allProduk = []; const data = snap.val() || {};
+                Object.keys(data).forEach(id => allProduk.push({ id, ...data[id] }));
                 renderProduk();
             });
         }
-
         function renderProduk() {
             const keyword = document.getElementById('searchProduk').value.toLowerCase();
             const table = document.getElementById('tabelProduk');
-            const paginContainer = document.getElementById('paginationProd');
-            let filtered = allProduk.filter(p => p.nama.toLowerCase().includes(keyword));
-            filtered.sort((a, b) => a.kategori.localeCompare(b.kategori) || a.nama.localeCompare(b.nama));
-            const start = (pageProd - 1) * limitProd;
-            const end = start + limitProd;
-            const displayed = filtered.slice(start, end);
+            let filtered = allProduk.filter(p => p.nama.toLowerCase().includes(keyword)).sort((a,b)=>a.kategori.localeCompare(b.kategori));
             table.innerHTML = "";
-            displayed.forEach(p => {
-                table.innerHTML += `<tr>
-                    <td><img src="${p.foto || 'https://via.placeholder.com/40'}" class="img-preview"></td>
-                    <td>${p.nama}</td>
-                    <td><span style="background:#eee; padding:2px 8px; border-radius:10px; font-size:11px;">${p.kategori}</span></td>
-                    <td>Rp ${p.harga.toLocaleString()}</td>
-                    <td><strong style="color:${p.stok <= 5 ? 'red' : 'black'}">${p.stok}</strong></td>
-                    <td>
-                        <button class="btn-edit" onclick="editProduk('${p.id}', '${p.nama}', ${p.harga}, ${p.stok}, '${p.kategori}', '${p.foto}')">Edit</button>
-                        <button class="btn-delete" onclick="hapusProduk('${p.id}')">Hapus</button>
-                    </td>
-                </tr>`;
+            filtered.slice((pageProd-1)*limitProd, pageProd*limitProd).forEach(p => {
+                table.innerHTML += `<tr><td><img src="${p.foto||'https://via.placeholder.com/40'}" class="img-preview"></td><td>${p.nama}</td><td>${p.kategori}</td><td>Rp ${p.harga.toLocaleString()}</td><td><strong style="color:${p.stok<=5?'red':'black'}">${p.stok}</strong></td><td><button class="btn-edit" onclick="editProduk('${p.id}','${p.nama}',${p.harga},${p.stok},'${p.kategori}','${p.foto}')">Edit</button><button class="btn-delete" onclick="hapusProduk('${p.id}')">Hapus</button></td></tr>`;
             });
-            const totalPage = Math.ceil(filtered.length / limitProd);
-            paginContainer.innerHTML = `<button class="page-btn" onclick="changePageProd(-1)" ${pageProd === 1 ? 'disabled' : ''}>Prev</button><span>Halaman ${pageProd} dari ${totalPage || 1}</span><button class="page-btn" onclick="changePageProd(1)" ${pageProd === totalPage || totalPage === 0 ? 'disabled' : ''}>Next</button>`;
+            const total = Math.ceil(filtered.length/limitProd);
+            document.getElementById('paginationProd').innerHTML = `<button class="page-btn" onclick="changePageProd(-1)" ${pageProd==1?'disabled':''}>Prev</button><span>${pageProd}/${total||1}</span><button class="page-btn" onclick="changePageProd(1)" ${pageProd==total||total==0?'disabled':''}>Next</button>`;
         }
         function changePageProd(dir) { pageProd += dir; renderProduk(); }
-
         function simpanProduk() {
             const key = document.getElementById('editKey').value;
-            const data = {
-                nama: document.getElementById('namaProduk').value,
-                harga: parseInt(document.getElementById('hargaProduk').value),
-                stok: parseInt(document.getElementById('stokProduk').value),
-                kategori: document.getElementById('kategoriProduk').value,
-                foto: document.getElementById('fotoProduk').value
-            };
-            if(!data.nama || !data.kategori) return alert("Lengkapi data!");
+            const data = { nama: document.getElementById('namaProduk').value, harga: parseInt(document.getElementById('hargaProduk').value), stok: parseInt(document.getElementById('stokProduk').value), kategori: document.getElementById('kategoriProduk').value, foto: document.getElementById('fotoProduk').value };
+            if(!data.nama) return alert("Lengkapi!");
             const ref = key ? db.ref('produk/' + key) : db.ref('produk').push();
-            ref.set(data).then(() => { alert("Berhasil!"); resetForm(); });
+            ref.set(data).then(() => { alert("Sukses!"); resetForm(); });
         }
-
-        function editProduk(key, nama, harga, stok, kategori, foto) {
+        function editProduk(key, n, h, s, k, f) {
             document.getElementById('formTitle').innerText = "Mode Edit";
-            document.getElementById('editKey').value = key;
-            document.getElementById('namaProduk').value = nama;
-            document.getElementById('hargaProduk').value = harga;
-            document.getElementById('stokProduk').value = stok;
-            document.getElementById('kategoriProduk').value = kategori;
-            document.getElementById('fotoProduk').value = foto;
-            document.getElementById('btnSave').innerText = "Update Produk";
-            document.getElementById('btnSave').classList.add('btn-update');
-            document.getElementById('btnCancel').style.display = "block";
+            document.getElementById('editKey').value = key; document.getElementById('namaProduk').value = n; document.getElementById('hargaProduk').value = h; document.getElementById('stokProduk').value = s; document.getElementById('kategoriProduk').value = k; document.getElementById('fotoProduk').value = f;
+            document.getElementById('btnSave').innerText = "Update"; document.getElementById('btnSave').classList.add('btn-update'); document.getElementById('btnCancel').style.display = "block";
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
-
         function resetForm() {
-            document.getElementById('editKey').value = "";
-            document.getElementById('namaProduk').value = "";
-            document.getElementById('hargaProduk').value = "";
-            document.getElementById('stokProduk').value = "";
-            document.getElementById('kategoriProduk').value = "";
-            document.getElementById('fotoProduk').value = "";
-            document.getElementById('formTitle').innerText = "Tambah / Edit Produk";
-            document.getElementById('btnSave').innerText = "💾 Simpan Produk";
-            document.getElementById('btnSave').classList.remove('btn-update');
-            document.getElementById('btnCancel').style.display = "none";
+            document.getElementById('editKey').value = ""; document.getElementById('namaProduk').value = ""; document.getElementById('hargaProduk').value = ""; document.getElementById('stokProduk').value = ""; document.getElementById('kategoriProduk').value = ""; document.getElementById('fotoProduk').value = "";
+            document.getElementById('formTitle').innerText = "Tambah / Edit Produk"; document.getElementById('btnSave').innerText = "💾 Simpan Produk"; document.getElementById('btnSave').classList.remove('btn-update'); document.getElementById('btnCancel').style.display = "none";
         }
-
-        function hapusProduk(key) { if(confirm("Yakin hapus?")) db.ref('produk/' + key).remove(); }
+        function hapusProduk(key) { if(confirm("Hapus?")) db.ref('produk/' + key).remove(); }
         function logout() { auth.signOut().then(() => { localStorage.clear(); window.location.href = "login.html"; }); }
 
-        muatKategori();
-        muatProduk();
+        db.ref('cabang/').once('value', s => s.forEach(c => { let o=document.createElement('option'); o.value=c.val(); o.innerText=c.val(); document.getElementById('delCabang').appendChild(o); }));
+        muatKategori(); muatProduk();
     </script>
 </body>
 </html>

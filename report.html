@@ -19,6 +19,7 @@
         th { background: #2c3e50; color: white; padding: 12px; text-align: left; font-size: 13px; }
         td { padding: 12px; border-bottom: 1px solid #eee; font-size: 12px; }
         tr:hover { background-color: #f9f9f9; }
+        .btn-logout { background: #c0392b; color: white; border: none; cursor: pointer; display: block; padding: 10px 15px; border-radius: 5px; font-weight: bold; text-decoration: none; margin-top: 20px; }
     </style>
 </head>
 <body>
@@ -27,8 +28,10 @@
         <a href="index.html">🏠 Dashboard</a>
         <a href="sales.html">🛒 Sales</a>
         <a href="report.html" style="background: #34495e;">📊 Report</a>
+        <a href="customers.html">👥 Customers</a>
         <a href="search.html">🔍 Search Resi</a>
         <a href="admin.html">⚙️ Admin</a>
+        <a href="#" onclick="logout()" class="btn-logout">🚪 Logout</a>
     </div>
 
     <div class="content">
@@ -66,7 +69,8 @@
                     <tr>
                         <th>No Resi</th>
                         <th>Tanggal</th>
-                        <th>Lokasi</th> <th>No HP Customer</th>
+                        <th>Lokasi</th> 
+                        <th>Customer (Nama/HP)</th>
                         <th>SKU / Produk</th>
                         <th>Qty</th>
                         <th>Harga</th>
@@ -74,13 +78,14 @@
                     </tr>
                 </thead>
                 <tbody id="tabelReport">
-                    <tr><td colspan="8" align="center">Menghubungkan ke Cloud...</td></tr>
+                    <tr><td colspan="8" align="center">Memuat data transaksi...</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <script>
         const firebaseConfig = {
@@ -93,11 +98,28 @@
             appId: "1:770636746020:web:e7c12761ad3e295271b7b1"
         };
         firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
         const db = firebase.database();
+
+        auth.onAuthStateChanged((user) => {
+            const role = localStorage.getItem("userRole");
+            if (!user || role !== "superadmin") {
+                window.location.href = "sales.html"; 
+            }
+        });
+
+        function logout() {
+            auth.signOut().then(() => { 
+                localStorage.clear();
+                window.location.href = "login.html"; 
+            });
+        }
 
         function muatLaporan() {
             const startInput = document.getElementById('startDate').value;
             const endInput = document.getElementById('endDate').value;
+            const tableBody = document.getElementById('tabelReport');
+            tableBody.innerHTML = '<tr><td colspan="8" align="center">Menganalisis data...</td></tr>';
 
             db.ref('transaksi/').once('value', (snap) => {
                 const data = snap.val() || {};
@@ -105,10 +127,14 @@
                 let totalTransaksi = 0;
                 let html = "";
 
-                Object.keys(data).reverse().forEach(id => {
+                // Urutkan dari yang terbaru
+                const sortedKeys = Object.keys(data).reverse();
+
+                sortedKeys.forEach(id => {
                     const t = data[id];
                     const tglMurni = t.tanggalMurni;
 
+                    // Filter Tanggal
                     let lolos = true;
                     if (startInput || endInput) {
                         if (!tglMurni) { lolos = false; } 
@@ -123,16 +149,23 @@
                         totalTransaksi++;
                         
                         const tanggalSaja = t.waktu ? t.waktu.split(',')[0] : "-";
-                        const customerNo = t.customer || "Umum";
-                        const lokasiToko = t.lokasi || "-"; // AMBIL DATA LOKASI
+                        const lokasiToko = t.lokasi || "-"; 
+                        
+                        // Perbaikan: Ambil Nama dan No HP (Mendukung data baru & lama)
+                        const namaCust = t.customerName || "";
+                        const hpCust = t.customerPhone || t.customer || "";
+                        const infoCustomer = (namaCust || hpCust) ? `${namaCust} (${hpCust})` : "Umum";
 
-                        if(t.item && Array.isArray(t.item)) {
-                            t.item.forEach((item, index) => {
+                        // Perbaikan: Mendukung field 'items' atau 'item'
+                        const daftarBarang = t.items || t.item || [];
+
+                        if(Array.isArray(daftarBarang) && daftarBarang.length > 0) {
+                            daftarBarang.forEach((item, index) => {
                                 html += `<tr>
                                     <td>${index === 0 ? (t.id || id) : ""}</td>
                                     <td>${index === 0 ? tanggalSaja : ""}</td>
                                     <td>${index === 0 ? lokasiToko : ""}</td>
-                                    <td>${index === 0 ? customerNo : ""}</td>
+                                    <td>${index === 0 ? infoCustomer : ""}</td>
                                     <td>${item.nama}</td>
                                     <td align="center">${item.qty}</td>
                                     <td>Rp ${parseInt(item.harga).toLocaleString()}</td>
@@ -145,14 +178,14 @@
 
                 document.getElementById('totalOmzet').innerText = "Rp " + totalOmzet.toLocaleString();
                 document.getElementById('jumlahTransaksi').innerText = totalTransaksi;
-                document.getElementById('tabelReport').innerHTML = html || "<tr><td colspan='8' align='center'>Data tidak ditemukan</td></tr>";
+                tableBody.innerHTML = html || "<tr><td colspan='8' align='center'>Data tidak ditemukan</td></tr>";
             });
         }
 
         function downloadExcel() {
             const table = document.getElementById("tabelRiwayat");
             const wb = XLSX.utils.table_to_book(table, {sheet: "Laporan Penjualan"});
-            XLSX.writeFile(wb, "Laporan_Detail_MultiLokasi.xlsx");
+            XLSX.writeFile(wb, "Laporan_Detail_Hegarsari.xlsx");
         }
 
         function resetLaporan() {
@@ -161,6 +194,7 @@
             muatLaporan();
         }
 
+        // Jalankan saat halaman dibuka
         muatLaporan();
     </script>
 </body>

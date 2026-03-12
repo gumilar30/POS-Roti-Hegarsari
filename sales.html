@@ -23,7 +23,7 @@
         #panelCash { display: block; background: #f9f9f9; padding: 10px; border-radius: 4px; margin-top: 10px; }
         .btn-wa { background: #25d366; color: white; margin-top: 10px; width: 100%; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; display: none; text-align: center; text-decoration: none; }
         .info-cabang { background: #2c3e50; color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px; margin-bottom: 10px; display: inline-block; }
-        .auto-loading { font-size: 10px; color: #3498db; font-style: italic; display: none; }
+        .auto-loading { font-size: 11px; color: #3498db; font-style: italic; display: none; line-height: 1.4; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -151,32 +151,63 @@
         let filterKategori = "Semua";
         let dataTerakhir = null;
 
+        // --- FUNGSI AUTO-FILL CUSTOMER & ANALISIS MENU FAVORIT ---
         function cekCustomerLama() {
             const hp = document.getElementById('customerHP').value;
             const info = document.getElementById('loadInfo');
+            
             if (hp.length >= 9) {
                 info.style.display = "block";
-                db.ref('transaksi').orderByChild('customerPhone').equalTo(hp).limitToLast(1).once('value', (snap) => {
-                    if (snap.exists()) {
-                        const lastTrx = Object.values(snap.val())[0];
-                        document.getElementById('customerName').value = lastTrx.customerName || "";
-                        info.innerText = "✨ Pelanggan Lama Ditemukan";
-                        info.style.color = "#27ae60";
-                    } else {
-                        db.ref('transaksi').orderByChild('customer').equalTo(hp).limitToLast(1).once('value', (snap2) => {
-                            if (snap2.exists()) {
-                                const lastTrx2 = Object.values(snap2.val())[0];
-                                document.getElementById('customerName').value = lastTrx2.customerName || lastTrx2.nama || "";
-                                info.innerText = "✨ Pelanggan Lama Ditemukan";
-                                info.style.color = "#27ae60";
-                            } else {
-                                info.innerText = "🆕 Pelanggan Baru";
-                                info.style.color = "#e67e22";
-                            }
+                info.innerText = "Menganalisis profil pelanggan...";
+                info.style.color = "#3498db";
+
+                db.ref('transaksi').orderByChild('customerPhone').equalTo(hp).once('value', (snap) => {
+                    let data = snap.val();
+                    if (!data) {
+                        db.ref('transaksi').orderByChild('customer').equalTo(hp).once('value', (snapOld) => {
+                            prosesAnalisisCustomer(snapOld.val());
                         });
+                    } else {
+                        prosesAnalisisCustomer(data);
                     }
                 });
-            } else { info.style.display = "none"; info.innerText = "Mengecek database..."; }
+            } else {
+                info.style.display = "none";
+                info.innerText = "Mengecek database...";
+            }
+        }
+
+        function prosesAnalisisCustomer(allTrx) {
+            const info = document.getElementById('loadInfo');
+            const nameInput = document.getElementById('customerName');
+
+            if (allTrx) {
+                let lastTrx = null;
+                let menuStats = {};
+
+                Object.values(allTrx).forEach(trx => {
+                    lastTrx = trx; 
+                    const daftarBarang = trx.items || trx.item || [];
+                    daftarBarang.forEach(item => {
+                        menuStats[item.nama] = (menuStats[item.nama] || 0) + item.qty;
+                    });
+                });
+
+                let topMenus = Object.entries(menuStats)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 3)
+                    .map(entry => entry[0].toLowerCase());
+
+                nameInput.value = lastTrx.customerName || lastTrx.nama || "";
+
+                let teksFavorit = topMenus.length > 0 ? topMenus.join(', ') : '-';
+                info.innerHTML = `✨ Pelanggan Lama. <br><b>Biasa Order:</b> <span style="color:#2c3e50; text-transform: capitalize;">${teksFavorit}</span>`;
+                info.style.color = "#27ae60";
+            } else {
+                info.innerText = "🆕 Pelanggan Baru";
+                info.style.color = "#e67e22";
+                nameInput.value = ""; 
+            }
         }
 
         db.ref('produk/').on('value', (snap) => { 
@@ -190,7 +221,9 @@
             const categories = new Set();
             Object.values(produkObj).forEach(p => { if(p.kategori) categories.add(p.kategori); });
             tabContainer.innerHTML = `<button class="tab-btn ${filterKategori === 'Semua' ? 'active' : ''}" onclick="setFilter('Semua', this)">Semua</button>`;
-            categories.forEach(cat => { tabContainer.innerHTML += `<button class="tab-btn ${filterKategori === cat ? 'active' : ''}" onclick="setFilter('${cat}', this)">${cat}</button>`; });
+            categories.forEach(cat => {
+                tabContainer.innerHTML += `<button class="tab-btn ${filterKategori === cat ? 'active' : ''}" onclick="setFilter('${cat}', this)">${cat}</button>`;
+            });
         }
 
         function setFilter(kat, btn) {
@@ -277,9 +310,7 @@
             updates['/transaksi/'+trxID] = dataTerakhir;
 
             db.ref().update(updates).then(() => {
-                // REVISI: CETAK DALAM SATU JENDELA
                 printStrukGabungan(dataTerakhir);
-
                 document.getElementById("btnWA").style.display = "block";
                 alert("Berhasil! Antrian: " + noAntrian);
                 cart = []; renderCart(); renderProduk();
@@ -293,7 +324,6 @@
             });
         }
 
-        // FUNGSI PRINT GABUNGAN (REKOMENDASI)
         function printStrukGabungan(d) {
             const win = window.open("", "", "width=300,height=800");
             let itemsCust = "";

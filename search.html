@@ -30,7 +30,6 @@
             <input type="text" id="inputSearch" placeholder="Masukkan Nomor Resi atau No HP">
             <button class="btn-search" onclick="cariResi()">Cari Data</button>
         </div>
-
         <div id="hasilPencarian"></div>
     </div>
 
@@ -51,16 +50,16 @@
         const db = firebase.database();
         const auth = firebase.auth();
 
-        // LOGIKA GEMBOK DINAMIS (ADMIN vs USER)
         auth.onAuthStateChanged((user) => {
             const role = localStorage.getItem("userRole");
             if (!user) {
                 window.location.href = "login.html";
             } else {
-                if(role === "user") {
-                    document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'none');
+                const adminMenus = document.querySelectorAll('.menu-admin');
+                if(role === "superadmin") {
+                    adminMenus.forEach(el => el.style.display = 'block');
                 } else {
-                    document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'block');
+                    adminMenus.forEach(el => el.style.display = 'none');
                 }
             }
         });
@@ -73,23 +72,15 @@
             const keyword = document.getElementById('inputSearch').value.trim().toLowerCase();
             const container = document.getElementById('hasilPencarian');
             if(!keyword) return alert("Masukkan kata kunci!");
-
             container.innerHTML = "Mencari...";
-
             db.ref('transaksi/').once('value', (snap) => {
                 const data = snap.val() || {};
-                let html = "";
-                let found = false;
-
+                let html = ""; let found = false;
                 Object.keys(data).reverse().forEach(key => {
                     const t = data[key];
-                    const matchID = (t.id || "").toLowerCase().includes(keyword);
-                    const matchHP = (t.customer || "").toLowerCase().includes(keyword);
-
-                    if(matchID || matchHP) {
+                    if((t.id || "").toLowerCase().includes(keyword) || (t.customer || "").toLowerCase().includes(keyword)) {
                         found = true;
-                        html += `
-                        <div class="resi-card">
+                        html += `<div class="resi-card">
                             <div style="display:flex; justify-content:space-between; align-items:start;">
                                 <div>
                                     <strong>${t.id || key}</strong> (${t.waktu})<br>
@@ -101,7 +92,6 @@
                         </div>`;
                     }
                 });
-
                 container.innerHTML = found ? html : "Data tidak ditemukan.";
             });
         }
@@ -113,26 +103,21 @@
                 items += `<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;">
                     <span>${i.nama} x${i.qty}</span><span>${(i.harga*i.qty).toLocaleString()}</span></div>`;
             });
-
             win.document.write(`<html><head><style>
                 @page { size: 5.6cm 16cm; margin: 0; }
                 body { font-family: 'Courier New', monospace; width: 5.6cm; padding: 10px; margin: 0; box-sizing: border-box; }
                 .line { border-bottom: 1px dashed black; margin: 8px 0; }
                 .bold { font-weight: bold; }
                 .small { font-size: 11px; }
-            </style></head>
-            <body onload="window.print();window.close()">
-                <div style="text-align:center;"><h3 style="margin:0;">ROTI HEGARSARI</h3><p class="small" style="margin:4px 0;">(COPY RESI) - ${d.lokasi}</p></div>
+            </style></head><body onload="window.print();window.close()">
+                <div style="text-align:center;"><h3 style="margin:0;">ROTI HEGARSARI</h3><p class="small" style="margin:4px 0;">(COPY) - ${d.lokasi}</p></div>
                 <div class="line"></div>
                 <div class="small bold">Nomer Antrian : ${d.antrian}</div>
                 <div class="small">ID: ${d.id}<br>Waktu: ${d.waktu}<br>Telp: ${d.customer}</div>
-                <div class="line"></div>
-                ${items}
-                <div class="line"></div>
+                <div class="line"></div>${items}<div class="line"></div>
                 <div style="display:flex;justify-content:space-between;" class="small bold"><span>TOTAL:</span><span>Rp ${d.total.toLocaleString()}</span></div>
                 <div style="display:flex;justify-content:space-between;font-size:10px;"><span>Diskon:</span><span>Rp ${(d.potongan || 0).toLocaleString()}</span></div>
-                <div class="line"></div>
-                <p style="text-align:center;font-size:10px;">Terima kasih atas kunjungannya!</p>
+                <div class="line"></div><p style="text-align:center;font-size:10px;">Terima kasih!</p>
             </body></html>`);
             win.document.close();
         }

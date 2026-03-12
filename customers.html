@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Customer - Roti Hegarsari</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        .filter-container { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        th { background: #2980b9; color: white; padding: 12px; text-align: left; position: sticky; top: 0; }
+        td { padding: 12px; border-bottom: 1px solid #eee; font-size: 13px; }
+        tr:hover { background: #f1f1f1; }
+        .btn-download { background: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>🍞 Hegarsari</h2>
+        <a href="index.html">🏠 Dashboard</a>
+        <a href="sales.html">🛒 Sales</a>
+        <a href="report.html">📊 Report</a>
+        <a href="customers.html" style="background: #34495e;">👥 Customers</a>
+        <a href="admin.html">⚙️ Admin</a>
+    </div>
+
+    <div class="content">
+        <h1>Database Loyalitas Customer</h1>
+
+        <div class="filter-container">
+            <div class="form-group" style="margin:0;">
+                <label>Periode:</label>
+                <select id="periodSelect" onchange="toggleDateInputs()">
+                    <option value="all">Semua Waktu</option>
+                    <option value="custom">Rentang Tanggal</option>
+                </select>
+            </div>
+            <div id="customDateRange" style="display: none; gap: 10px;">
+                <input type="date" id="startDate">
+                <input type="date" id="endDate">
+            </div>
+            <button class="btn-save" style="width: auto; margin:0;" onclick="muatDataCustomer()">🔍 Tampilkan</button>
+            <button class="btn-download" onclick="downloadExcel()">📥 Download Excel</button>
+        </div>
+
+        <div class="card" style="padding:0; overflow-x: auto; max-height: 70vh;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th>Nama</th>
+                        <th>No HP</th>
+                        <th>Order Pertama</th>
+                        <th>Order Terakhir</th>
+                        <th>Total Order</th>
+                        <th>Total Nominal</th>
+                        <th>Rata-rata/Order</th>
+                        <th>Produk Sering Dipesan</th>
+                    </tr>
+                </thead>
+                <tbody id="customerTableBody">
+                    <tr><td colspan="8" align="center">Klik "Tampilkan" untuk memuat data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script>
+        // SAMA DENGAN CONFIG SEBELUMNYA
+        const firebaseConfig = {
+            apiKey: "AIzaSyD0hNlCjszxB_3dPEJngPAFknfxiImK6Nc",
+            authDomain: "roti-hegarsari.firebaseapp.com",
+            databaseURL: "https://roti-hegarsari-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "roti-hegarsari"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        function toggleDateInputs() {
+            const isCustom = document.getElementById('periodSelect').value === 'custom';
+            document.getElementById('customDateRange').style.display = isCustom ? 'flex' : 'none';
+        }
+
+        let dataExport = [];
+
+        async function muatDataCustomer() {
+            const period = document.getElementById('periodSelect').value;
+            const start = document.getElementById('startDate').value;
+            const end = document.getElementById('endDate').value;
+            const tableBody = document.getElementById('customerTableBody');
+            
+            tableBody.innerHTML = '<tr><td colspan="8" align="center">Menganalisis data transaksi...</td></tr>';
+
+            const snap = await db.ref('transaksi').once('value');
+            const allTrx = snap.val();
+            
+            if (!allTrx) return tableBody.innerHTML = '<tr><td colspan="8" align="center">Belum ada transaksi.</td></tr>';
+
+            let customers = {};
+
+            Object.values(allTrx).forEach(trx => {
+                // Filter Tanggal
+                if (period === 'custom') {
+                    if (trx.tanggalMurni < start || trx.tanggalMurni > end) return;
+                }
+
+                const phone = trx.customerPhone || "Tanpa No HP";
+                const name = trx.customerName || "Anonim";
+
+                if (!customers[phone]) {
+                    customers[phone] = {
+                        nama: name,
+                        phone: phone,
+                        firstOrder: trx.tanggalMurni,
+                        lastOrder: trx.tanggalMurni,
+                        count: 0,
+                        totalNominal: 0,
+                        itemMap: {}
+                    };
+                }
+
+                // Update data agregat
+                customers[phone].count += 1;
+                customers[phone].totalNominal += trx.total;
+                if (trx.tanggalMurni < customers[phone].firstOrder) customers[phone].firstOrder = trx.tanggalMurni;
+                if (trx.tanggalMurni > customers[phone].lastOrder) customers[phone].lastOrder = trx.tanggalMurni;
+                
+                // Hitung produk favorit
+                trx.items.forEach(item => {
+                    customers[phone].itemMap[item.nama] = (customers[phone].itemMap[item.nama] || 0) + item.qty;
+                });
+            });
+
+            // Ubah ke Array dan Sort berdasarkan jumlah order terbanyak
+            let sortedCustomers = Object.values(customers).sort((a, b) => b.count - a.count);
+
+            tableBody.innerHTML = '';
+            dataExport = [];
+
+            sortedCustomers.forEach(c => {
+                // Cari 3 produk teratas
+                const favItems = Object.entries(c.itemMap)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 3)
+                    .map(i => `${i[0]} (${i[1]}pcs)`)
+                    .join('; ');
+
+                const avg = c.totalNominal / c.count;
+
+                const row = `
+                    <tr>
+                        <td><b>${c.nama}</b></td>
+                        <td>${c.phone}</td>
+                        <td>${c.firstOrder}</td>
+                        <td>${c.lastOrder}</td>
+                        <td align="center"><b>${c.count}</b></td>
+                        <td>Rp ${c.totalNominal.toLocaleString()}</td>
+                        <td>Rp ${avg.toLocaleString(undefined, {maximumFractionDigits:0})}</td>
+                        <td style="font-size:11px; color:#555;">${favItems}</td>
+                    </tr>
+                `;
+                tableBody.innerHTML += row;
+
+                // Siapkan data untuk excel
+                dataExport.push({
+                    "Nama": c.nama,
+                    "No HP Customer": c.phone,
+                    "Tanggal Pertama Order": c.firstOrder,
+                    "Tanggal Terakhir Order": c.lastOrder,
+                    "Jumlah Order": c.count,
+                    "Jumlah Nominal (Rupiah)": c.totalNominal,
+                    "Rata-Rata Nominal / Order": avg,
+                    "3 Produk sering Dipesan": favItems
+                });
+            });
+        }
+
+        function downloadExcel() {
+            if (dataExport.length === 0) return alert("Tampilkan data dulu!");
+            const ws = XLSX.utils.json_to_sheet(dataExport);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Database Customer");
+            XLSX.writeFile(wb, "Database_Customer_Hegarsari.xlsx");
+        }
+    </script>
+</body>
+</html>

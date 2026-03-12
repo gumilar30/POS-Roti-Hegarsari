@@ -8,7 +8,7 @@
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <style>
         .filter-container { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        th { background: #2980b9; color: white; padding: 12px; text-align: left; position: sticky; top: 0; }
+        th { background: #2980b9; color: white; padding: 12px; text-align: left; position: sticky; top: 0; font-size: 13px; }
         td { padding: 12px; border-bottom: 1px solid #eee; font-size: 13px; }
         tr:hover { background: #f1f1f1; }
         .btn-download { background: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
@@ -44,11 +44,11 @@
             <button class="btn-download" onclick="downloadExcel()">📥 Download Excel</button>
         </div>
 
-        <div class="card" style="padding:0; overflow-x: auto; max-height: 70vh;">
+        <div class="card" style="padding:0; overflow-x: auto; max-height: 75vh;">
             <table style="width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr>
-                        <th>Nama</th>
+                        <th>Nama Customer</th>
                         <th>No HP</th>
                         <th>Order Pertama</th>
                         <th>Order Terakhir</th>
@@ -96,7 +96,7 @@
             const allTrx = snap.val();
             
             if (!allTrx) {
-                tableBody.innerHTML = '<tr><td colspan="8" align="center">Belum ada transaksi di database.</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="8" align="center">Belum ada transaksi.</td></tr>';
                 return;
             }
 
@@ -108,50 +108,52 @@
                     if (trx.tanggalMurni < start || trx.tanggalMurni > end) return;
                 }
 
-                // Ambil No HP sebagai ID unik
-                const phone = trx.customerPhone || trx.customer || "Tanpa No HP";
-                const name = trx.customerName || "Anonim";
+                // IDENTIFIKASI CUSTOMER (Berdasarkan No HP)
+                const phone = trx.customerPhone || trx.customer || "-";
+                // AMBIL NAMA (Cek field customerName atau nama)
+                const name = trx.customerName || trx.nama || "Pelanggan";
+                // AMBIL TANGGAL (Cek field tanggalMurni atau waktu)
+                const tgl = trx.tanggalMurni || (trx.waktu ? trx.waktu.split(',')[0] : "Data Lama");
 
                 if (!customers[phone]) {
                     customers[phone] = {
                         nama: name,
                         phone: phone,
-                        firstOrder: trx.tanggalMurni,
-                        lastOrder: trx.tanggalMurni,
+                        firstOrder: tgl,
+                        lastOrder: tgl,
                         count: 0,
                         totalNominal: 0,
                         itemMap: {}
                     };
                 }
 
-                // Akumulasi Data
+                // Update Data
                 customers[phone].count += 1;
                 customers[phone].totalNominal += (trx.total || 0);
                 
-                // Cek Tanggal Pertama/Terakhir
-                if (trx.tanggalMurni < customers[phone].firstOrder) customers[phone].firstOrder = trx.tanggalMurni;
-                if (trx.tanggalMurni > customers[phone].lastOrder) customers[phone].lastOrder = trx.tanggalMurni;
+                // Pastikan Nama terupdate jika sebelumnya Anonim tapi sekarang ada namanya
+                if (name !== "Pelanggan" && name !== "Anonim") customers[phone].nama = name;
+
+                // Perbandingan Tanggal agar tidak undefined
+                if (tgl !== "Data Lama") {
+                    if (customers[phone].firstOrder === "Data Lama" || tgl < customers[phone].firstOrder) customers[phone].firstOrder = tgl;
+                    if (customers[phone].lastOrder === "Data Lama" || tgl > customers[phone].lastOrder) customers[phone].lastOrder = tgl;
+                }
                 
-                // Logika Perbaikan: Membaca array 'item' (sesuai sales.html Anda)
-                const daftarBarang = trx.item || trx.items || [];
+                // Hitung Produk (items vs item)
+                const daftarBarang = trx.items || trx.item || [];
                 daftarBarang.forEach(i => {
                     customers[phone].itemMap[i.nama] = (customers[phone].itemMap[i.nama] || 0) + i.qty;
                 });
             });
 
-            // Ubah ke Array dan Sort (Jumlah Order Terbanyak)
+            // Urutkan berdasarkan Jumlah Order Terbanyak
             let sortedCustomers = Object.values(customers).sort((a, b) => b.count - a.count);
-
-            if (sortedCustomers.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="8" align="center">Tidak ada data untuk periode ini.</td></tr>';
-                return;
-            }
 
             tableBody.innerHTML = '';
             dataExport = [];
 
             sortedCustomers.forEach(c => {
-                // Cari 3 produk favorit
                 const favItems = Object.entries(c.itemMap)
                     .sort((a, b) => b[1] - a[1])
                     .slice(0, 3)
@@ -169,30 +171,30 @@
                         <td align="center"><b>${c.count}</b></td>
                         <td align="right">Rp ${c.totalNominal.toLocaleString()}</td>
                         <td align="right">Rp ${avg.toLocaleString(undefined, {maximumFractionDigits:0})}</td>
-                        <td style="font-size:11px; color:#555;">${favItems}</td>
+                        <td style="font-size:11px; color:#666;">${favItems}</td>
                     </tr>
                 `;
                 tableBody.innerHTML += row;
 
                 dataExport.push({
-                    "Nama": c.nama,
+                    "Nama Customer": c.nama,
                     "No HP Customer": c.phone,
                     "Tanggal Pertama Order": c.firstOrder,
                     "Tanggal Terakhir Order": c.lastOrder,
                     "Jumlah Order": c.count,
-                    "Jumlah Nominal (Rupiah)": c.totalNominal,
-                    "Rata-Rata Nominal / Order": avg,
-                    "3 Produk sering Dipesan": favItems
+                    "Jumlah Nominal": c.totalNominal,
+                    "Rata-Rata per Order": avg,
+                    "Top 3 Produk": favItems
                 });
             });
         }
 
         function downloadExcel() {
-            if (dataExport.length === 0) return alert("Tampilkan data dulu!");
+            if (dataExport.length === 0) return alert("Data kosong!");
             const ws = XLSX.utils.json_to_sheet(dataExport);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Database Customer");
-            XLSX.writeFile(wb, `Customer_Loyalty_${new Date().toISOString().split('T')[0]}.xlsx`);
+            XLSX.utils.book_append_sheet(wb, ws, "Loyalty");
+            XLSX.writeFile(wb, `Customer_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
         }
     </script>
 </body>

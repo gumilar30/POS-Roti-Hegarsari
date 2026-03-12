@@ -10,7 +10,7 @@
         .form-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
-        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: inherit; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: inherit; }
         .btn-save { background: #27ae60; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 10px; }
         .btn-update { background: #f39c12 !important; }
         .btn-cancel { background: #95a5a6; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 10px; display: none; }
@@ -47,7 +47,7 @@
     <div class="content">
         <h1>Admin Panel</h1>
 
-        <button class="btn-mega-backup" onclick="megaBackup()">📂 MEGA BACKUP (3 SHEET: PRODUK, TRX, CUSTOMER)</button>
+        <button class="btn-mega-backup" onclick="megaBackup()">📂 MEGA BACKUP (3 SHEET: PRODUK, TRX DETAIL, CUSTOMER LOYALTY)</button>
 
         <div style="display: flex; gap: 20px; flex-wrap: wrap;">
             <div class="form-container" style="flex: 2; min-width: 300px;">
@@ -141,7 +141,7 @@
             if (!user || role !== "superadmin") { window.location.href = "sales.html"; }
         });
 
-        // --- FUNGSI MEGA BACKUP (3 SHEET TERPISAH) ---
+        // --- FUNGSI MEGA BACKUP REVISI (PER SKU & ANALISIS CUSTOMER) ---
         async function megaBackup() {
             try {
                 const snap = await db.ref('/').once('value');
@@ -163,31 +163,38 @@
                     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(prodArr), "PRODUK");
                 }
 
-                // 2. SHEET TRANSAKSI (RAW DATA)
+                // 2. SHEET TRANSAKSI (PECAH PER ITEM / SKU)
                 if (data.transaksi) {
-                    const trxArr = Object.keys(data.transaksi).map(id => {
+                    let trxDetailArr = [];
+                    Object.keys(data.transaksi).forEach(id => {
                         const t = data.transaksi[id];
-                        // Ambil daftar nama barang saja untuk excel
-                        const itemsList = (t.items || t.item || []).map(i => `${i.nama} (${i.qty})`).join(", ");
-                        return {
-                            ID_TRX: id,
-                            TANGGAL: t.tanggalMurni,
-                            WAKTU: t.waktu,
-                            CABANG: t.lokasi,
-                            CUSTOMER: t.customerName || t.nama || "Anonim",
-                            NO_HP: t.customerPhone || t.customer || "-",
-                            BARANG: itemsList,
-                            TOTAL: t.total,
-                            DISCON: t.potongan || 0,
-                            METODE: t.metode
-                        };
+                        const listItems = t.items || t.item || [];
+                        
+                        listItems.forEach(i => {
+                            trxDetailArr.push({
+                                ID_TRX: id,
+                                TANGGAL: t.tanggalMurni,
+                                WAKTU: t.waktu,
+                                CABANG: t.lokasi,
+                                CUSTOMER: t.customerName || t.nama || "Anonim",
+                                NO_HP: t.customerPhone || t.customer || "-",
+                                ITEM_BARANG: i.nama,
+                                HARGA_SATUAN: i.harga,
+                                JUMLAH_BELI: i.qty,
+                                SUB_TOTAL_ITEM: i.harga * i.qty,
+                                TOTAL_TRANSAKSI: t.total,
+                                METODE: t.metode
+                            });
+                        });
                     });
-                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(trxArr), "TRANSAKSI");
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(trxDetailArr), "TRANSAKSI");
                 }
 
-                // 3. SHEET CUSTOMER (ANALISIS LOYALITAS)
+                // 3. SHEET CUSTOMER (LOYALITAS - PERSIS CUSTOMER.HTML)
                 if (data.transaksi) {
                     let customers = {};
+                    const today = new Date();
+
                     Object.values(data.transaksi).forEach(trx => {
                         const phone = trx.customerPhone || trx.customer || "Tanpa No HP";
                         const name = trx.customerName || trx.nama || "Pelanggan";
@@ -200,26 +207,66 @@
                                 ORDER_PERTAMA: tgl,
                                 ORDER_TERAKHIR: tgl,
                                 TOTAL_ORDER: 0,
-                                TOTAL_NOMINAL: 0
+                                TOTAL_NOMINAL: 0,
+                                itemMap: {}
                             };
                         }
+                        
                         customers[phone].TOTAL_ORDER += 1;
                         customers[phone].TOTAL_NOMINAL += (trx.total || 0);
-                        if (tgl < customers[phone].ORDER_PERTAMA) customers[phone].ORDER_PERTAMA = tgl;
-                        if (tgl > customers[phone].ORDER_TERAKHIR) customers[phone].ORDER_TERAKHIR = tgl;
+                        if (name !== "Pelanggan" && name !== "Anonim") customers[phone].NAMA = name;
+                        
+                        if (tgl !== "-" ) {
+                            if (customers[phone].ORDER_PERTAMA === "-" || tgl < customers[phone].ORDER_PERTAMA) customers[phone].ORDER_PERTAMA = tgl;
+                            if (customers[phone].ORDER_TERAKHIR === "-" || tgl > customers[phone].ORDER_TERAKHIR) customers[phone].ORDER_TERAKHIR = tgl;
+                        }
+
+                        const items = trx.items || trx.item || [];
+                        items.forEach(i => {
+                            customers[phone].itemMap[i.nama] = (customers[phone].itemMap[i.nama] || 0) + i.qty;
+                        });
                     });
-                    const custArr = Object.values(customers).sort((a,b) => b.TOTAL_ORDER - a.TOTAL_ORDER);
+
+                    const custArr = Object.values(customers).map(c => {
+                        // Hitung Lama Tidak Order
+                        let selisih = "-";
+                        if (c.ORDER_TERAKHIR !== "-") {
+                            const last = new Date(c.ORDER_TERAKHIR);
+                            const diff = Math.floor((today - last) / (1000 * 60 * 60 * 24));
+                            selisih = diff + " Hari";
+                        }
+
+                        // Cari 3 Produk Sering Dipesan
+                        const fav = Object.entries(c.itemMap)
+                            .sort((a,b) => b[1] - a[1])
+                            .slice(0,3)
+                            .map(x => `${x[0]} (${x[1]}pcs)`)
+                            .join("; ");
+
+                        return {
+                            "Nama Customer": c.NAMA,
+                            "No HP": c.NO_HP,
+                            "Order Pertama": c.ORDER_PERTAMA,
+                            "Order Terakhir": c.ORDER_TERAKHIR,
+                            "Lama Tidak Order": selisih,
+                            "Total Order": c.TOTAL_ORDER,
+                            "Total Nominal": c.TOTAL_NOMINAL,
+                            "Rata-rata/Order": Math.round(c.TOTAL_NOMINAL / c.TOTAL_ORDER),
+                            "Produk Sering Dipesan": fav
+                        };
+                    }).sort((a,b) => b["Total Order"] - a["Total Order"]);
+
                     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(custArr), "CUSTOMER");
                 }
 
-                XLSX.writeFile(wb, `HEGARSARI_MEGA_BACKUP_${new Date().toISOString().split('T')[0]}.xlsx`);
-                alert("Mega Backup Berhasil! File berisi 3 Sheet (Produk, Transaksi, Customer).");
+                XLSX.writeFile(wb, `MEGA_BACKUP_HEGARSARI_${new Date().toISOString().split('T')[0]}.xlsx`);
+                alert("Mega Backup Berhasil! Data Transaksi per SKU & Customer Loyalty tersimpan.");
             } catch (e) {
-                alert("Mega Backup Gagal: " + e.message);
+                alert("Gagal: " + e.message);
             }
         }
 
-        // --- FUNGSI SIMPAN PRODUK DENGAN AUTO-CONVERT GOOGLE DRIVE ---
+        // --- SIMPAN PRODUK DENGAN AUTO-CONVERT LINK GOOGLE DRIVE ---
         function simpanProduk() {
             let key = document.getElementById('editKey').value;
             let fotoUrl = document.getElementById('fotoProduk').value.trim();

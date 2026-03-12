@@ -51,7 +51,6 @@
     const auth = firebase.auth();
     const database = firebase.database();
 
-    // --- LOGIKA GEMBOK TOTAL ---
     auth.onAuthStateChanged((user) => {
         const role = localStorage.getItem("userRole");
         if (!user) {
@@ -61,7 +60,6 @@
             if (role === "superadmin") {
                 adminMenus.forEach(el => el.style.display = 'block');
             } else {
-                // Tendang kasir jika coba akses index.html
                 window.location.href = "sales.html";
             }
         }

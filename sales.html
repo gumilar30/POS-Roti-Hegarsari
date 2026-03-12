@@ -126,9 +126,9 @@
             } else {
                 const adminMenus = document.querySelectorAll('.menu-admin');
                 if(role === "superadmin") {
-                    adminMenus.forEach(el => el.style.display = 'block');
+                    adminMenus.forEach(el => el.style.display = 'block'); // Pastikan muncul
                 } else {
-                    adminMenus.forEach(el => el.style.display = 'none');
+                    adminMenus.forEach(el => el.style.display = 'none'); // Sembunyikan untuk kasir
                 }
             }
         });

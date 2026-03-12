@@ -12,16 +12,26 @@
         .form-group label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
         .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
         .btn-save { background: #27ae60; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 10px; }
-        .btn-update { background: #f39c12 !important; } /* Warna Oranye untuk Edit */
+        .btn-update { background: #f39c12 !important; }
         .btn-cancel { background: #95a5a6; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 10px; display: none; }
-        .btn-import { background: #34495e; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .btn-kat { background: #3498db; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-top: 5px; }
+        
+        /* Pagination Styling */
+        .pagination { display: flex; gap: 5px; margin-top: 10px; justify-content: center; align-items: center; }
+        .page-btn { padding: 5px 10px; border: 1px solid #ddd; background: white; cursor: pointer; border-radius: 4px; font-size: 12px; }
+        .page-btn.active { background: #3498db; color: white; border-color: #3498db; }
+        .page-btn:disabled { cursor: not-allowed; opacity: 0.5; }
+
         th { background: #2c3e50; color: white; padding: 12px; text-align: left; }
         td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; }
-        .img-preview { width: 50px; height: 50px; object-fit: cover; border-radius: 5px; }
-        .btn-edit { background: #f39c12; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; margin-right: 5px; }
+        .img-preview { width: 40px; height: 40px; object-fit: cover; border-radius: 5px; }
+        .btn-edit { background: #f39c12; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; }
         .btn-delete { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; }
-        .danger-zone { border-top: 5px solid #e74c3c; background: #fff5f5; }
+        
+        /* Search Box */
+        .search-container { margin-bottom: 15px; }
+        .search-container input { width: 100%; padding: 10px; border-radius: 20px; border: 1px solid #ddd; padding-left: 20px; box-sizing: border-box; }
+        
+        .cat-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #f9f9f9; }
     </style>
 </head>
 <body>
@@ -36,84 +46,49 @@
     </div>
 
     <div class="content">
-        <h1>Admin Panel (Manajemen Toko)</h1>
+        <h1>Admin Panel</h1>
 
         <div style="display: flex; gap: 20px; flex-wrap: wrap;">
             <div class="form-container" style="flex: 2; min-width: 300px;">
-                <h3 id="formTitle">Tambah Produk Baru</h3>
-                <input type="hidden" id="editKey"> <div class="form-group">
-                    <label>Nama Roti:</label>
-                    <input type="text" id="namaProduk" placeholder="Contoh: Bolen Lilit">
-                </div>
-                <div class="form-group">
-                    <label>Harga (Rp):</label>
-                    <input type="number" id="hargaProduk" placeholder="15000">
-                </div>
-                <div class="form-group">
-                    <label>Stok:</label>
-                    <input type="number" id="stokProduk" placeholder="50">
+                <h3 id="formTitle">Tambah Produk</h3>
+                <input type="hidden" id="editKey">
+                <div class="form-group"><label>Nama Roti:</label><input type="text" id="namaProduk"></div>
+                <div style="display: flex; gap: 10px;">
+                    <div class="form-group" style="flex:1;"><label>Harga:</label><input type="number" id="hargaProduk"></div>
+                    <div class="form-group" style="flex:1;"><label>Stok:</label><input type="number" id="stokProduk"></div>
                 </div>
                 <div class="form-group">
                     <label>Kategori:</label>
-                    <select id="kategoriProduk">
-                        <option value="">Pilih Kategori...</option>
-                    </select>
+                    <select id="kategoriProduk"><option value="">Pilih Kategori...</option></select>
                 </div>
-                <div class="form-group">
-                    <label>Link Foto (URL):</label>
-                    <input type="text" id="fotoProduk" placeholder="https://...">
-                </div>
-                
+                <div class="form-group"><label>Link Foto:</label><input type="text" id="fotoProduk"></div>
                 <button id="btnSave" class="btn-save" onclick="simpanProduk()">💾 Simpan Produk</button>
-                <button id="btnCancel" class="btn-cancel" onclick="resetForm()">❌ Batal Edit</button>
-                
-                <hr>
-                <label style="font-weight: bold; font-size: 14px;">📦 Import Massal (Excel):</label><br><br>
-                <input type="file" id="fileExcel" accept=".xlsx, .xls, .csv" style="font-size: 12px;">
-                <button class="btn-import" onclick="importExcel()">📥 Proses Import</button>
+                <button id="btnCancel" class="btn-cancel" onclick="resetForm()">❌ Batal</button>
             </div>
 
-            <div style="flex: 1; min-width: 250px; display: flex; flex-direction: column; gap: 20px;">
-                <div class="form-container">
-                    <h3>Atur Kategori</h3>
-                    <input type="text" id="newKategori" placeholder="Nama kategori baru..." style="width: 100%; padding: 8px; margin-bottom: 10px;">
-                    <button class="btn-kat" style="width: 100%;" onclick="tambahKategori()">➕ Tambah Kategori</button>
-                    <ul id="listKategori" style="margin-top: 15px; font-size: 13px; padding-left: 20px;"></ul>
-                </div>
-
-                <div class="form-container danger-zone">
-                    <h3>🧹 Bersihkan Data</h3>
-                    <p style="font-size: 12px; color: #c0392b;">Hapus riwayat transaksi lama secara permanen.</p>
-                    <div class="form-group">
-                        <label>Dari Tanggal:</label>
-                        <input type="date" id="delStart">
-                    </div>
-                    <div class="form-group">
-                        <label>Sampai Tanggal:</label>
-                        <input type="date" id="delEnd">
-                    </div>
-                    <button class="btn-delete" style="width: 100%; padding: 10px;" onclick="hapusTransaksiRentang()">Hapus Permanen</button>
-                </div>
+            <div class="form-container" style="flex: 1; min-width: 250px;">
+                <h3>Atur Kategori</h3>
+                <input type="text" id="newKategori" placeholder="Kategori baru..." style="width: 80%; padding: 8px;">
+                <button onclick="tambahKategori()" style="padding: 8px;">➕</button>
+                <div id="listKategori" style="margin-top: 10px; min-height: 120px;"></div>
+                <div id="paginationKat" class="pagination"></div>
             </div>
         </div>
 
         <div class="card">
-            <h3>Daftar Stok Produk</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <h3>Daftar Stok Produk</h3>
+                <div class="search-container" style="width: 300px;">
+                    <input type="text" id="searchProduk" placeholder="🔍 Cari nama produk..." oninput="renderProduk()">
+                </div>
+            </div>
             <table style="width: 100%; border-collapse: collapse;">
                 <thead>
-                    <tr>
-                        <th>Foto</th>
-                        <th>Nama</th>
-                        <th>Kategori</th>
-                        <th>Harga</th>
-                        <th>Stok</th>
-                        <th>Aksi</th>
-                    </tr>
+                    <tr><th>Foto</th><th>Nama</th><th>Kategori</th><th>Harga</th><th>Stok</th><th>Aksi</th></tr>
                 </thead>
-                <tbody id="tabelProduk">
-                    <tr><td colspan="6" align="center">Memuat data...</td></tr>
-                </tbody>
+                <tbody id="tabelProduk"></tbody>
             </table>
+            <div id="paginationProd" class="pagination" style="margin-top: 20px;"></div>
         </div>
     </div>
 
@@ -134,149 +109,181 @@
         const db = firebase.database();
         const auth = firebase.auth();
 
+        // Variabel Pagination
+        let allKategori = [];
+        let pageKat = 1;
+        const limitKat = 3;
+
+        let allProduk = [];
+        let pageProd = 1;
+        const limitProd = 10;
+
         auth.onAuthStateChanged((user) => {
             const role = localStorage.getItem("userRole");
             if (!user || role !== "superadmin") { window.location.href = "sales.html"; }
         });
 
+        // --- 1. LOGIKA KATEGORI (3 DATA, NEWEST FIRST) ---
         function muatKategori() {
             db.ref('kategori_produk').on('value', (snap) => {
+                allKategori = [];
                 const data = snap.val() || {};
-                let options = '<option value="">Pilih Kategori...</option>';
-                let list = '';
                 Object.keys(data).forEach(id => {
-                    options += `<option value="${data[id]}">${data[id]}</option>`;
-                    list += `<li style="margin-bottom:5px;">${data[id]} <button onclick="hapusKategori('${id}')" style="background:none; border:none; color:red; cursor:pointer;">[x]</button></li>`;
+                    allKategori.push({ id, nama: data[id] });
                 });
-                document.getElementById('kategoriProduk').innerHTML = options;
-                document.getElementById('listKategori').innerHTML = list;
+                allKategori.reverse(); // Terbaru di depan
+                renderKategori();
+                updateDropdownKategori();
             });
+        }
+
+        function renderKategori() {
+            const container = document.getElementById('listKategori');
+            const paginContainer = document.getElementById('paginationKat');
+            container.innerHTML = "";
+
+            const start = (pageKat - 1) * limitKat;
+            const end = start + limitKat;
+            const displayed = allKategori.slice(start, end);
+
+            displayed.forEach(item => {
+                container.innerHTML += `
+                <div class="cat-item">
+                    <span>${item.nama}</span>
+                    <button class="btn-delete" style="padding:2px 6px;" onclick="hapusKategori('${item.id}')">✕</button>
+                </div>`;
+            });
+
+            // Pagination Buttons
+            const totalPage = Math.ceil(allKategori.length / limitKat);
+            paginContainer.innerHTML = `
+                <button class="page-btn" onclick="changePageKat(-1)" ${pageKat === 1 ? 'disabled' : ''}>Prev</button>
+                <span>${pageKat} / ${totalPage || 1}</span>
+                <button class="page-btn" onclick="changePageKat(1)" ${pageKat === totalPage || totalPage === 0 ? 'disabled' : ''}>Next</button>
+            `;
+        }
+
+        function changePageKat(dir) { pageKat += dir; renderKategori(); }
+
+        function updateDropdownKategori() {
+            let options = '<option value="">Pilih Kategori...</option>';
+            [...allKategori].sort((a,b) => a.nama.localeCompare(b.nama)).forEach(item => {
+                options += `<option value="${item.nama}">${item.nama}</option>`;
+            });
+            document.getElementById('kategoriProduk').innerHTML = options;
         }
 
         function tambahKategori() {
             const kat = document.getElementById('newKategori').value.trim();
             if(!kat) return;
-            db.ref('kategori_produk').push(kat).then(() => { document.getElementById('newKategori').value = ""; });
+            db.ref('kategori_produk').push(kat).then(() => { 
+                document.getElementById('newKategori').value = ""; 
+                pageKat = 1; // Kembali ke depan untuk melihat hasil baru
+            });
         }
 
-        function hapusKategori(id) {
-            if(confirm("Hapus kategori ini?")) db.ref('kategori_produk/'+id).remove();
+        function hapusKategori(id) { if(confirm("Hapus kategori?")) db.ref('kategori_produk/'+id).remove(); }
+
+        // --- 2. LOGIKA PRODUK (10 DATA, GROUP BY CATEGORY, SEARCH) ---
+        function muatProduk() {
+            db.ref('produk').on('value', (snap) => {
+                allProduk = [];
+                const data = snap.val() || {};
+                Object.keys(data).forEach(id => {
+                    allProduk.push({ id, ...data[id] });
+                });
+                renderProduk();
+            });
         }
 
+        function renderProduk() {
+            const keyword = document.getElementById('searchProduk').value.toLowerCase();
+            const table = document.getElementById('tabelProduk');
+            const paginContainer = document.getElementById('paginationProd');
+            
+            // Filter Search & Sorting berdasarkan Kategori
+            let filtered = allProduk.filter(p => p.nama.toLowerCase().includes(keyword));
+            filtered.sort((a, b) => a.kategori.localeCompare(b.kategori) || a.nama.localeCompare(b.nama));
+
+            const start = (pageProd - 1) * limitProd;
+            const end = start + limitProd;
+            const displayed = filtered.slice(start, end);
+
+            table.innerHTML = "";
+            displayed.forEach(p => {
+                table.innerHTML += `
+                <tr>
+                    <td><img src="${p.foto || 'https://via.placeholder.com/50'}" class="img-preview"></td>
+                    <td>${p.nama}</td>
+                    <td><span style="background:#eee; padding:2px 8px; border-radius:10px; font-size:11px;">${p.kategori}</span></td>
+                    <td>Rp ${p.harga.toLocaleString()}</td>
+                    <td><strong style="color:${p.stok <= 5 ? 'red' : 'black'}">${p.stok}</strong></td>
+                    <td>
+                        <button class="btn-edit" onclick="editProduk('${p.id}', '${p.nama}', ${p.harga}, ${p.stok}, '${p.kategori}', '${p.foto}')">Edit</button>
+                        <button class="btn-delete" onclick="hapusProduk('${p.id}')">Hapus</button>
+                    </td>
+                </tr>`;
+            });
+
+            // Pagination Buttons
+            const totalPage = Math.ceil(filtered.length / limitProd);
+            paginContainer.innerHTML = `
+                <button class="page-btn" onclick="changePageProd(-1)" ${pageProd === 1 ? 'disabled' : ''}>Prev</button>
+                <span>Halaman ${pageProd} dari ${totalPage || 1}</span>
+                <button class="page-btn" onclick="changePageProd(1)" ${pageProd === totalPage || totalPage === 0 ? 'disabled' : ''}>Next</button>
+            `;
+        }
+
+        function changePageProd(dir) { pageProd += dir; renderProduk(); }
+
+        // --- CRUD & OTHERS ---
         function simpanProduk() {
             const key = document.getElementById('editKey').value;
-            const nama = document.getElementById('namaProduk').value;
-            const harga = parseInt(document.getElementById('hargaProduk').value);
-            const stok = parseInt(document.getElementById('stokProduk').value);
-            const kategori = document.getElementById('kategoriProduk').value;
-            const foto = document.getElementById('fotoProduk').value;
-
-            if(!nama || !harga || !kategori) return alert("Nama, Harga, dan Kategori wajib diisi!");
-
-            const dataProduk = { nama, harga, stok, kategori, foto: foto || "" };
-
-            if (key) {
-                db.ref('produk/' + key).update(dataProduk).then(() => {
-                    alert("Produk Berhasil Diperbarui!");
-                    resetForm();
-                });
-            } else {
-                db.ref('produk').push(dataProduk).then(() => {
-                    alert("Produk Berhasil Ditambahkan!");
-                    resetForm();
-                });
-            }
+            const data = {
+                nama: document.getElementById('namaProduk').value,
+                harga: parseInt(document.getElementById('hargaProduk').value),
+                stok: parseInt(document.getElementById('stokProduk').value),
+                kategori: document.getElementById('kategoriProduk').value,
+                foto: document.getElementById('fotoProduk').value
+            };
+            if(!data.nama || !data.kategori) return alert("Lengkapi data!");
+            
+            const ref = key ? db.ref('produk/' + key) : db.ref('produk').push();
+            ref.set(data).then(() => { alert("Berhasil!"); resetForm(); });
         }
 
         function editProduk(key, nama, harga, stok, kategori, foto) {
-            document.getElementById('formTitle').innerText = "Mode Edit: " + nama;
+            document.getElementById('formTitle').innerText = "Mode Edit";
             document.getElementById('editKey').value = key;
             document.getElementById('namaProduk').value = nama;
             document.getElementById('hargaProduk').value = harga;
             document.getElementById('stokProduk').value = stok;
             document.getElementById('kategoriProduk').value = kategori;
             document.getElementById('fotoProduk').value = foto;
-
-            document.getElementById('btnSave').innerText = "Update Produk";
+            document.getElementById('btnSave').innerText = "Update";
             document.getElementById('btnSave').classList.add('btn-update');
             document.getElementById('btnCancel').style.display = "block";
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         function resetForm() {
-            document.getElementById('formTitle').innerText = "Tambah Produk Baru";
             document.getElementById('editKey').value = "";
             document.getElementById('namaProduk').value = "";
             document.getElementById('hargaProduk').value = "";
             document.getElementById('stokProduk').value = "";
             document.getElementById('kategoriProduk').value = "";
             document.getElementById('fotoProduk').value = "";
+            document.getElementById('formTitle').innerText = "Tambah Produk";
             document.getElementById('btnSave').innerText = "💾 Simpan Produk";
             document.getElementById('btnSave').classList.remove('btn-update');
             document.getElementById('btnCancel').style.display = "none";
         }
 
-        function importExcel() {
-            const file = document.getElementById('fileExcel').files[0];
-            if(!file) return alert("Pilih file excel!");
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, {type: 'array'});
-                const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-                if(confirm(`Import ${json.length} data?`)) {
-                    json.forEach(item => {
-                        db.ref('produk').push({
-                            nama: item.Nama || item.nama || "No Name",
-                            harga: parseInt(item.Harga || item.harga) || 0,
-                            stok: parseInt(item.Stok || item.stok) || 0,
-                            kategori: item.Kategori || item.kategori || "Umum",
-                            foto: item.Foto || item.foto || ""
-                        });
-                    });
-                    alert("Import Selesai!");
-                }
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        function hapusTransaksiRentang() {
-            const start = document.getElementById('delStart').value;
-            const end = document.getElementById('delEnd').value;
-            if (!start || !end) return alert("Pilih tanggal!");
-            if (confirm(`HAPUS PERMANEN transaksi ${start} s/d ${end}?`)) {
-                db.ref('transaksi').orderByChild('tanggalMurni').startAt(start).endAt(end).once('value', (snap) => {
-                    if (!snap.exists()) return alert("Data tidak ditemukan.");
-                    const updates = {};
-                    snap.forEach(child => { updates[child.key] = null; });
-                    db.ref('transaksi').update(updates).then(() => { alert("Pembersihan Sukses!"); });
-                });
-            }
-        }
-
-        db.ref('produk/').on('value', (snap) => {
-            const data = snap.val();
-            let html = "";
-            for(let key in data) {
-                const p = data[key];
-                html += `<tr>
-                    <td><img src="${p.foto || 'https://via.placeholder.com/50'}" class="img-preview"></td>
-                    <td>${p.nama}</td>
-                    <td>${p.kategori}</td>
-                    <td>Rp ${p.harga.toLocaleString()}</td>
-                    <td><strong>${p.stok}</strong></td>
-                    <td>
-                        <button class="btn-edit" onclick="editProduk('${key}', '${p.nama}', ${p.harga}, ${p.stok}, '${p.kategori}', '${p.foto}')">Edit</button>
-                        <button class="btn-delete" onclick="hapusProduk('${key}')">Hapus</button>
-                    </td>
-                </tr>`;
-            }
-            document.getElementById('tabelProduk').innerHTML = html || "<tr><td colspan='6' align='center'>Belum ada produk.</td></tr>";
-        });
-
         function hapusProduk(key) { if(confirm("Yakin hapus?")) db.ref('produk/' + key).remove(); }
         function logout() { auth.signOut().then(() => { localStorage.clear(); window.location.href = "login.html"; }); }
+
         muatKategori();
+        muatProduk();
     </script>
 </body>
 </html>

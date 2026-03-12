@@ -119,13 +119,17 @@
         if(!cabangAktif) window.location.href = "login.html";
         document.getElementById('displayCabang').innerText = "Cabang: " + cabangAktif;
 
+        // LOGIKA GEMBOK DINAMIS (ADMIN vs USER)
         auth.onAuthStateChanged((user) => {
             const role = localStorage.getItem("userRole");
             if (!user) {
                 window.location.href = "login.html";
-            } else if(role === "user") {
-                // Sembunyikan hanya yang admin saja
-                document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'none');
+            } else {
+                if(role === "user") {
+                    document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'none');
+                } else {
+                    document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'block');
+                }
             }
         });
 

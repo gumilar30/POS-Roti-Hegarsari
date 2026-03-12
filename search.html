@@ -27,12 +27,11 @@
     <div class="content">
         <h1>Cari & Print Ulang Resi</h1>
         <div class="search-box">
-            <input type="text" id="inputSearch" placeholder="Masukkan Nomor Resi atau No HP (Contoh: TRX-123 atau 0812...)">
+            <input type="text" id="inputSearch" placeholder="Masukkan Nomor Resi atau No HP">
             <button class="btn-search" onclick="cariResi()">Cari Data</button>
         </div>
 
-        <div id="hasilPencarian">
-            </div>
+        <div id="hasilPencarian"></div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -52,13 +51,17 @@
         const db = firebase.database();
         const auth = firebase.auth();
 
-        // GEMBOK AKSES (KASIR & ADMIN BOLEH MASUK)
+        // LOGIKA GEMBOK DINAMIS (ADMIN vs USER)
         auth.onAuthStateChanged((user) => {
             const role = localStorage.getItem("userRole");
             if (!user) {
                 window.location.href = "login.html";
-            } else if(role === "user") {
-                document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'none');
+            } else {
+                if(role === "user") {
+                    document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'none');
+                } else {
+                    document.querySelectorAll('.menu-admin').forEach(el => el.style.display = 'block');
+                }
             }
         });
 

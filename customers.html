@@ -12,6 +12,7 @@
         td { padding: 12px; border-bottom: 1px solid #eee; font-size: 13px; }
         tr:hover { background: #f1f1f1; }
         .btn-download { background: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .form-group { margin-bottom: 0 !important; }
     </style>
 </head>
 <body>
@@ -28,18 +29,18 @@
         <h1>Database Loyalitas Customer</h1>
 
         <div class="filter-container">
-            <div class="form-group" style="margin:0;">
+            <div class="form-group">
                 <label>Periode:</label>
-                <select id="periodSelect" onchange="toggleDateInputs()">
+                <select id="periodSelect" onchange="toggleDateInputs()" style="padding: 8px; border-radius: 5px; border: 1px solid #ddd;">
                     <option value="all">Semua Waktu</option>
                     <option value="custom">Rentang Tanggal</option>
                 </select>
             </div>
             <div id="customDateRange" style="display: none; gap: 10px;">
-                <input type="date" id="startDate">
-                <input type="date" id="endDate">
+                <input type="date" id="startDate" style="padding: 8px; border-radius: 5px; border: 1px solid #ddd;">
+                <input type="date" id="endDate" style="padding: 8px; border-radius: 5px; border: 1px solid #ddd;">
             </div>
-            <button class="btn-save" style="width: auto; margin:0;" onclick="muatDataCustomer()">🔍 Tampilkan</button>
+            <button class="btn-save" style="width: auto; background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold;" onclick="muatDataCustomer()">🔍 Tampilkan</button>
             <button class="btn-download" onclick="downloadExcel()">📥 Download Excel</button>
         </div>
 
@@ -67,7 +68,6 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <script>
-        // SAMA DENGAN CONFIG SEBELUMNYA
         const firebaseConfig = {
             apiKey: "AIzaSyD0hNlCjszxB_3dPEJngPAFknfxiImK6Nc",
             authDomain: "roti-hegarsari.firebaseapp.com",
@@ -95,7 +95,10 @@
             const snap = await db.ref('transaksi').once('value');
             const allTrx = snap.val();
             
-            if (!allTrx) return tableBody.innerHTML = '<tr><td colspan="8" align="center">Belum ada transaksi.</td></tr>';
+            if (!allTrx) {
+                tableBody.innerHTML = '<tr><td colspan="8" align="center">Belum ada transaksi di database.</td></tr>';
+                return;
+            }
 
             let customers = {};
 
@@ -105,7 +108,8 @@
                     if (trx.tanggalMurni < start || trx.tanggalMurni > end) return;
                 }
 
-                const phone = trx.customerPhone || "Tanpa No HP";
+                // Ambil No HP sebagai ID unik
+                const phone = trx.customerPhone || trx.customer || "Tanpa No HP";
                 const name = trx.customerName || "Anonim";
 
                 if (!customers[phone]) {
@@ -120,26 +124,34 @@
                     };
                 }
 
-                // Update data agregat
+                // Akumulasi Data
                 customers[phone].count += 1;
-                customers[phone].totalNominal += trx.total;
+                customers[phone].totalNominal += (trx.total || 0);
+                
+                // Cek Tanggal Pertama/Terakhir
                 if (trx.tanggalMurni < customers[phone].firstOrder) customers[phone].firstOrder = trx.tanggalMurni;
                 if (trx.tanggalMurni > customers[phone].lastOrder) customers[phone].lastOrder = trx.tanggalMurni;
                 
-                // Hitung produk favorit
-                trx.items.forEach(item => {
-                    customers[phone].itemMap[item.nama] = (customers[phone].itemMap[item.nama] || 0) + item.qty;
+                // Logika Perbaikan: Membaca array 'item' (sesuai sales.html Anda)
+                const daftarBarang = trx.item || trx.items || [];
+                daftarBarang.forEach(i => {
+                    customers[phone].itemMap[i.nama] = (customers[phone].itemMap[i.nama] || 0) + i.qty;
                 });
             });
 
-            // Ubah ke Array dan Sort berdasarkan jumlah order terbanyak
+            // Ubah ke Array dan Sort (Jumlah Order Terbanyak)
             let sortedCustomers = Object.values(customers).sort((a, b) => b.count - a.count);
+
+            if (sortedCustomers.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="8" align="center">Tidak ada data untuk periode ini.</td></tr>';
+                return;
+            }
 
             tableBody.innerHTML = '';
             dataExport = [];
 
             sortedCustomers.forEach(c => {
-                // Cari 3 produk teratas
+                // Cari 3 produk favorit
                 const favItems = Object.entries(c.itemMap)
                     .sort((a, b) => b[1] - a[1])
                     .slice(0, 3)
@@ -152,17 +164,16 @@
                     <tr>
                         <td><b>${c.nama}</b></td>
                         <td>${c.phone}</td>
-                        <td>${c.firstOrder}</td>
-                        <td>${c.lastOrder}</td>
+                        <td align="center">${c.firstOrder}</td>
+                        <td align="center">${c.lastOrder}</td>
                         <td align="center"><b>${c.count}</b></td>
-                        <td>Rp ${c.totalNominal.toLocaleString()}</td>
-                        <td>Rp ${avg.toLocaleString(undefined, {maximumFractionDigits:0})}</td>
+                        <td align="right">Rp ${c.totalNominal.toLocaleString()}</td>
+                        <td align="right">Rp ${avg.toLocaleString(undefined, {maximumFractionDigits:0})}</td>
                         <td style="font-size:11px; color:#555;">${favItems}</td>
                     </tr>
                 `;
                 tableBody.innerHTML += row;
 
-                // Siapkan data untuk excel
                 dataExport.push({
                     "Nama": c.nama,
                     "No HP Customer": c.phone,
@@ -181,7 +192,7 @@
             const ws = XLSX.utils.json_to_sheet(dataExport);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Database Customer");
-            XLSX.writeFile(wb, "Database_Customer_Hegarsari.xlsx");
+            XLSX.writeFile(wb, `Customer_Loyalty_${new Date().toISOString().split('T')[0]}.xlsx`);
         }
     </script>
 </body>
